@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecms.fullname" . }}-config
+  labels:
+    {{- include "ecms.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.env.NODE_ENV | quote }}
+  PORT: {{ .Values.env.PORT | quote }}
+  REDIS_ENABLED: {{ .Values.env.REDIS_ENABLED | quote }}
+  REDIS_HOST: {{ .Values.env.REDIS_HOST | quote }}
+  REDIS_PORT: {{ .Values.env.REDIS_PORT | quote }}
+  MONGODB_DB: {{ .Values.env.MONGODB_DB | quote }}
+  ELASTICSEARCH_NODE: {{ .Values.env.ELASTICSEARCH_NODE | quote }}
+  AWS_REGION: {{ .Values.env.AWS_REGION | quote }}
+  CLOUDFRONT_DOMAIN: {{ .Values.env.CLOUDFRONT_DOMAIN | quote }}

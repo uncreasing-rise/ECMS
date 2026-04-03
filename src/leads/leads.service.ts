@@ -1,0 +1,134 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class LeadsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createLead(data: {
+    name: string;
+    phone: string;
+    email?: string;
+    source?: string;
+    status: string;
+    score?: number;
+    ownerId?: string;
+    branchId?: string;
+  }) {
+    return this.prisma.lead.create({
+      data: {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        source: data.source,
+        status: data.status,
+        score: data.score || 0,
+        ownerId: data.ownerId,
+        branchId: data.branchId,
+      },
+      include: { branch: true, owner: true },
+    });
+  }
+
+  async findAllLeads(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    return this.prisma.lead.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: { branch: true, owner: true },
+    });
+  }
+
+  async findLeadById(id: string) {
+    return this.prisma.lead.findUnique({
+      where: { id },
+      include: { branch: true, owner: true, statusHistory: true, consultations: true },
+    });
+  }
+
+  async findLeadsByOwner(ownerId: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    return this.prisma.lead.findMany({
+      where: { ownerId },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: { branch: true, owner: true },
+    });
+  }
+
+  async findLeadsByStatus(status: string, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    return this.prisma.lead.findMany({
+      where: { status },
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: { branch: true, owner: true },
+    });
+  }
+
+  async updateLead(id: string, data: any) {
+    return this.prisma.lead.update({
+      where: { id },
+      data,
+      include: { branch: true, owner: true },
+    });
+  }
+
+  async updateLeadStatus(id: string, status: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new Error('Lead not found');
+
+    await this.prisma.leadStatusHistory.create({
+      data: {
+        leadId: id,
+        fromStatus: lead.status,
+        toStatus: status,
+      },
+    });
+
+    return this.prisma.lead.update({
+      where: { id },
+      data: { status },
+      include: { statusHistory: true },
+    });
+  }
+
+  async logConsultation(data: {
+    leadId: string;
+    staffId?: string;
+    date: Date;
+    outcome?: string;
+    followUpNote?: string;
+    followUpDate?: Date;
+    status?: string;
+  }) {
+    return this.prisma.consultation.create({
+      data: {
+        leadId: data.leadId,
+        staffId: data.staffId,
+        date: data.date,
+        outcome: data.outcome,
+        followUpNote: data.followUpNote,
+        followUpDate: data.followUpDate,
+        status: data.status || 'pending',
+      },
+    });
+  }
+
+  async findLeadConsultations(leadId: string) {
+    return this.prisma.consultation.findMany({
+      where: { leadId },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async getLeadStatusHistory(leadId: string) {
+    return this.prisma.leadStatusHistory.findMany({
+      where: { leadId },
+      orderBy: { changedAt: 'desc' },
+    });
+  }
+}
