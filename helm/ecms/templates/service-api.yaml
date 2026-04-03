@@ -4,6 +4,10 @@ metadata:
   name: {{ include "ecms.fullname" . }}-api
   labels:
     {{- include "ecms.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: {{ .Values.monitoring.serviceMonitor.path | quote }}
+    prometheus.io/port: {{ .Values.api.service.targetPort | quote }}
 spec:
   type: {{ .Values.api.service.type }}
   selector:

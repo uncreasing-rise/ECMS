@@ -52,6 +52,21 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
 
+monitoring:
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+
+grafana:
+  dashboard:
+    enabled: false
+    labels:
+      grafana_dashboard: "1"
+
 env:
   NODE_ENV: production
   PORT: "3000"
