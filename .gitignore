@@ -2,7 +2,8 @@ node_modules
 # Keep environment variables out of version control
 .env
 
-dist
-*.tsbuildinfo
+/src/generated/prisma
 
-/generated/prisma
+# Ignore accidental nested git metadata backup and nested package created by wrong cwd commands
+ecms-be/.git-nested-backup-*
+ecms-be/ecms-be/

@@ -6,761 +6,712 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─────────────────────────────────────────
-// 1. IDENTITY & ACCESS
-// ─────────────────────────────────────────
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model appeal_requests {
+  id                                       String        @id @db.Uuid
+  session_id                               String        @db.Uuid
+  student_id                               String        @db.Uuid
+  question_id                              String?       @db.Uuid
+  reason                                   String
+  status                                   String?       @db.VarChar(20)
+  reviewed_by                              String?       @db.Uuid
+  resolution                               String?
+  created_at                               DateTime?     @db.Timestamp(6)
+  reviewed_at                              DateTime?     @db.Timestamp(6)
+  users_appeal_requests_reviewed_byTousers users?        @relation("appeal_requests_reviewed_byTousers", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_sessions                            exam_sessions @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_appeal_requests_student_idTousers  users         @relation("appeal_requests_student_idTousers", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
 
-model User {
-  id          String    @id @default(uuid()) @db.Uuid
-  firstName   String    @db.VarChar(191)
-  lastName    String    @db.VarChar(191)
-  email       String    @unique @db.VarChar(191)
-  passwordHash String?  @db.VarChar(255)
-  emailVerifiedAt DateTime?
-  phone       String?   @db.VarChar(50)
-  branchId    String?   @db.Uuid
-  accountType String    @db.VarChar(100)
-  status      String    @db.VarChar(100)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model assignments {
+  id             String        @id @db.Uuid
+  class_id       String        @db.Uuid
+  created_by     String        @db.Uuid
+  title          String        @db.VarChar(200)
+  description    String?
+  due_at         DateTime?     @db.Timestamp(6)
+  max_score      Decimal?      @default(10) @db.Decimal(5, 2)
+  allow_resubmit Boolean?      @default(false)
+  created_at     DateTime?     @db.Timestamp(6)
+  classes        classes       @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  submissions    submissions[]
+}
 
-  // Relationships
-  branch                 Branch?                 @relation("UserBranch", fields: [branchId], references: [id])
-  userRoles              UserRole[]
-  sessions               Session[]
-  auditLogs              AuditLog[]              @relation("AuditLogActor")
-  notifications          Notification[]          @relation("NotificationSender")
-  notificationRecipients NotificationRecipient[]
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model attendances {
+  id                                   String          @id @db.Uuid
+  schedule_id                          String          @db.Uuid
+  student_id                           String          @db.Uuid
+  status                               String?         @db.VarChar(20)
+  note                                 String?
+  recorded_by                          String?         @db.Uuid
+  recorded_at                          DateTime?       @db.Timestamp(6)
+  users_attendances_recorded_byTousers users?          @relation("attendances_recorded_byTousers", fields: [recorded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  class_schedules                      class_schedules @relation(fields: [schedule_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_attendances_student_idTousers  users           @relation("attendances_student_idTousers", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Academic
-  classesTeaching       Class[]                @relation("ClassTeacher")
-  enrollments           Enrollment[]           @relation("EnrollmentStudent")
-  assignmentSubmissions AssignmentSubmission[] @relation("SubmissionStudent")
-  attendanceDetails     AttendanceDetail[]
-  studentGrades         StudentGrade[]
-  resourceDownloads     ResourceDownloadLog[]
-  activityLogs          ActivityLog[]
-  examAttempts          ExamAttempt[]
+  @@unique([schedule_id, student_id], map: "attendances_schedule_id_student_id_idx")
+}
 
-  // CRM
-  leadsOwned    Lead[]
-  consultations Consultation[]
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model audit_logs {
+  id          String    @id @db.Uuid
+  user_id     String?   @db.Uuid
+  action      String    @db.VarChar(100)
+  target_type String?   @db.VarChar(50)
+  target_id   String?   @db.Uuid
+  old_value   Json?
+  new_value   Json?
+  ip_address  String?   @db.VarChar(45)
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  users       users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Family
-  asStudent  GuardianLink[] @relation("GuardianLinkStudent")
-  asGuardian GuardianLink[] @relation("GuardianLinkGuardian")
+  @@index([action])
+  @@index([created_at])
+  @@index([user_id])
+}
 
-  // Payroll
-  salarySetting      SalarySetting?
-  sessionPays        SessionPay[]
-  payrollAdjustments PayrollAdjustment[]
-  payrollsRunBy      PayrollRun[]
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model band_rubrics {
+  id                   String                 @id @db.Uuid
+  name                 String                 @db.VarChar(150)
+  exam_type            String?                @db.VarChar(30)
+  task                 String?                @db.VarChar(50)
+  criteria             Json
+  max_band             Decimal?               @default(9) @db.Decimal(3, 1)
+  created_by           String?                @db.Uuid
+  created_at           DateTime?              @db.Timestamp(6)
+  users                users?                 @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_section_configs exam_section_configs[]
+}
 
-  @@map("users")
-  @@index([createdAt])
-  @@index([branchId])
+model branches {
+  id         String       @id @db.Uuid
+  name       String       @db.VarChar(100)
+  address    String?
+  phone      String?      @db.VarChar(20)
+  is_active  Boolean?     @default(true)
+  created_at DateTime?    @db.Timestamp(6)
+  classes    classes[]
+  courses    courses[]
+  rooms      rooms[]
+  user_roles user_roles[]
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model class_schedules {
+  id             String        @id @db.Uuid
+  class_id       String        @db.Uuid
+  room_id        String?       @db.Uuid
+  session_number Int?
+  starts_at      DateTime      @db.Timestamp(6)
+  ends_at        DateTime      @db.Timestamp(6)
+  note           String?
+  attendances    attendances[]
+  classes        classes       @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rooms          rooms?        @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([room_id, starts_at, ends_at])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model classes {
+  id              String            @id @db.Uuid
+  course_id       String            @db.Uuid
+  teacher_id      String?           @db.Uuid
+  branch_id       String            @db.Uuid
+  name            String?           @db.VarChar(150)
+  max_students    Int?
+  start_date      DateTime?         @db.Date
+  end_date        DateTime?         @db.Date
+  status          String?           @db.VarChar(20)
+  created_at      DateTime?         @db.Timestamp(6)
+  assignments     assignments[]
+  class_schedules class_schedules[]
+  branches        branches          @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  courses         courses           @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?            @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doc_folders     doc_folders[]
+  documents       documents[]
+  enrollments     enrollments[]
+  exam_classes    exam_classes[]
+  grades          grades[]
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model course_modules {
+  id          String    @id @db.Uuid
+  course_id   String    @db.Uuid
+  title       String    @db.VarChar(150)
+  order_index Int?      @default(0)
+  is_active   Boolean?  @default(true)
+  courses     courses   @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lessons     lessons[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model courses {
+  id             String           @id @db.Uuid
+  branch_id      String?          @db.Uuid
+  name           String           @db.VarChar(150)
+  description    String?
+  level          String?          @db.VarChar(30)
+  total_sessions Int?
+  price          Decimal?         @db.Decimal(12, 2)
+  is_active      Boolean?         @default(true)
+  created_at     DateTime?        @db.Timestamp(6)
+  classes        classes[]
+  course_modules course_modules[]
+  branches       branches?        @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model doc_folders {
+  id                String        @id @db.Uuid
+  parent_id         String?       @db.Uuid
+  name              String        @db.VarChar(150)
+  scope             String        @db.VarChar(20)
+  scope_id          String?       @db.Uuid
+  created_by        String?       @db.Uuid
+  created_at        DateTime?     @db.Timestamp(6)
+  users             users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doc_folders       doc_folders?  @relation("doc_foldersTodoc_folders", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_doc_folders doc_folders[] @relation("doc_foldersTodoc_folders")
+  classes           classes?      @relation(fields: [scope_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documents         documents[]
+
+  @@index([parent_id])
+  @@index([scope])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model document_access_logs {
+  id          String    @id @db.Uuid
+  document_id String    @db.Uuid
+  user_id     String    @db.Uuid
+  action      String?   @db.VarChar(20)
+  accessed_at DateTime? @default(now()) @db.Timestamp(6)
+  ip_address  String?   @db.VarChar(45)
+  documents   documents @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([accessed_at])
+  @@index([document_id])
+  @@index([user_id])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model document_pins {
+  id          String    @id @db.Uuid
+  document_id String    @db.Uuid
+  pinned_by   String    @db.Uuid
+  scope       String?   @db.VarChar(20)
+  scope_id    String?   @db.Uuid
+  pinned_at   DateTime? @db.Timestamp(6)
+  documents   documents @relation(fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users     @relation(fields: [pinned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([document_id, pinned_by, scope_id], map: "document_pins_document_id_pinned_by_scope_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model documents {
+  id                   String                 @id @db.Uuid
+  folder_id            String?                @db.Uuid
+  scope                String                 @db.VarChar(20)
+  scope_id             String?                @db.Uuid
+  title                String                 @db.VarChar(255)
+  description          String?
+  file_url             String
+  file_name            String?                @db.VarChar(255)
+  file_type            String?                @db.VarChar(20)
+  file_size            BigInt?
+  is_public            Boolean?               @default(false)
+  tags                 String[]
+  uploaded_by          String                 @db.Uuid
+  uploaded_at          DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?              @db.Timestamp(6)
+  document_access_logs document_access_logs[]
+  document_pins        document_pins[]
+  doc_folders          doc_folders?           @relation(fields: [folder_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classes              classes?               @relation(fields: [scope_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users                  @relation(fields: [uploaded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([folder_id])
+  @@index([scope_id])
+  @@index([scope])
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model enrollments {
+  id          String     @id @db.Uuid
+  student_id  String     @db.Uuid
+  class_id    String     @db.Uuid
+  enrolled_at DateTime?  @default(now()) @db.Timestamp(6)
+  status      String?    @db.VarChar(20)
+  classes     classes    @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users      @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices    invoices[]
+
+  @@unique([student_id, class_id], map: "enrollments_student_id_class_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_answers {
+  id                   String                @id @db.Uuid
+  session_id           String                @db.Uuid
+  question_id          String                @db.Uuid
+  section_config_id    String?               @db.Uuid
+  answer               Json?
+  is_correct           Boolean?
+  auto_score           Decimal?              @db.Decimal(5, 2)
+  manual_score         Decimal?              @db.Decimal(5, 2)
+  band_score           Decimal?              @db.Decimal(3, 1)
+  rubric_scores        Json?
+  feedback             String?
+  answered_at          DateTime?             @db.Timestamp(6)
+  questions            questions             @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_section_configs exam_section_configs? @relation(fields: [section_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_sessions        exam_sessions         @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([session_id, question_id], map: "exam_answers_session_id_question_id_idx")
+  @@index([session_id])
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_classes {
+  id          String    @id @db.Uuid
+  exam_id     String    @db.Uuid
+  class_id    String    @db.Uuid
+  assigned_at DateTime? @db.Timestamp(6)
+  assigned_by String?   @db.Uuid
+  users       users?    @relation(fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  classes     classes   @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exams       exams     @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([exam_id, class_id], map: "exam_classes_exam_id_class_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_questions {
+  id                   String                @id @db.Uuid
+  exam_id              String                @db.Uuid
+  section_config_id    String?               @db.Uuid
+  question_id          String                @db.Uuid
+  order_index          Int?                  @default(0)
+  score                Decimal?              @default(1) @db.Decimal(5, 2)
+  exams                exams                 @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questions            questions             @relation(fields: [question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_section_configs exam_section_configs? @relation(fields: [section_config_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([exam_id, question_id], map: "exam_questions_exam_id_question_id_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_section_configs {
+  id               String           @id @db.Uuid
+  exam_id          String           @db.Uuid
+  section_id       String?          @db.Uuid
+  name             String           @db.VarChar(100)
+  order_index      Int
+  duration_minutes Int?
+  skill            String?          @db.VarChar(20)
+  question_type    String?          @db.VarChar(30)
+  num_questions    Int?
+  section_score    Decimal?         @db.Decimal(5, 2)
+  rubric_id        String?          @db.Uuid
+  exam_answers     exam_answers[]
+  exam_questions   exam_questions[]
+  exams            exams            @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  band_rubrics     band_rubrics?    @relation(fields: [rubric_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_sections    exam_sections?   @relation(fields: [section_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_sections {
+  id                   String                 @id @db.Uuid
+  template_id          String                 @db.Uuid
+  name                 String                 @db.VarChar(100)
+  order_index          Int
+  duration_minutes     Int?
+  num_questions        Int?
+  section_score        Decimal?               @db.Decimal(5, 2)
+  question_type        String?                @db.VarChar(30)
+  skill                String?                @db.VarChar(20)
+  instructions         String?
+  exam_section_configs exam_section_configs[]
+  exam_templates       exam_templates         @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_sessions {
+  id                                     String              @id @db.Uuid
+  exam_id                                String              @db.Uuid
+  student_id                             String              @db.Uuid
+  attempt_number                         Int?                @default(1)
+  started_at                             DateTime            @db.Timestamp(6)
+  submitted_at                           DateTime?           @db.Timestamp(6)
+  expires_at                             DateTime            @db.Timestamp(6)
+  status                                 String?             @db.VarChar(20)
+  auto_score                             Decimal?            @db.Decimal(6, 2)
+  manual_score                           Decimal?            @db.Decimal(6, 2)
+  band_score                             Decimal?            @db.Decimal(3, 1)
+  final_score                            Decimal?            @db.Decimal(6, 2)
+  section_scores                         Json?
+  violation_count                        Int?                @default(0)
+  violation_log                          Json?
+  ip_address                             String?             @db.VarChar(45)
+  device_info                            Json?
+  reviewed_by                            String?             @db.Uuid
+  reviewed_at                            DateTime?           @db.Timestamp(6)
+  appeal_requests                        appeal_requests[]
+  exam_answers                           exam_answers[]
+  exams                                  exams               @relation(fields: [exam_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_exam_sessions_reviewed_byTousers users?              @relation("exam_sessions_reviewed_byTousers", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_exam_sessions_student_idTousers  users               @relation("exam_sessions_student_idTousers", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mock_test_history                      mock_test_history[]
+
+  @@unique([exam_id, student_id, attempt_number], map: "exam_sessions_exam_id_student_id_attempt_number_idx")
   @@index([status])
+  @@index([student_id])
 }
 
-model Role {
-  id              String           @id @default(uuid()) @db.Uuid
-  name            String           @unique @db.VarChar(191)
-  description     String?          @db.Text
-  status          String           @db.VarChar(100)
-  rolePermissions RolePermission[]
-  userRoles       UserRole[]
-
-  @@map("roles")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exam_templates {
+  id                     String          @id @db.Uuid
+  name                   String          @db.VarChar(150)
+  exam_type              String          @db.VarChar(30)
+  subject                String?         @db.VarChar(50)
+  province               String?         @db.VarChar(100)
+  total_duration_minutes Int
+  total_score            Decimal?        @db.Decimal(5, 2)
+  passing_score          Decimal?        @db.Decimal(5, 2)
+  description            String?
+  instructions           String?
+  is_active              Boolean?        @default(true)
+  created_by             String?         @db.Uuid
+  created_at             DateTime?       @db.Timestamp(6)
+  exam_sections          exam_sections[]
+  users                  users?          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exams                  exams[]
 }
 
-model Permission {
-  id              String           @id @default(uuid()) @db.Uuid
-  name            String           @unique @db.VarChar(191)
-  category        String           @db.VarChar(191)
-  action          String           @db.VarChar(191)
-  rolePermissions RolePermission[]
-
-  @@map("permissions")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model exams {
+  id                   String                 @id @db.Uuid
+  template_id          String?                @db.Uuid
+  created_by           String                 @db.Uuid
+  title                String                 @db.VarChar(200)
+  description          String?
+  exam_type            String?                @db.VarChar(30)
+  subject              String?                @db.VarChar(50)
+  duration_minutes     Int
+  total_score          Decimal?               @db.Decimal(5, 2)
+  passing_score        Decimal?               @db.Decimal(5, 2)
+  max_attempts         Int?                   @default(1)
+  shuffle_questions    Boolean?               @default(true)
+  shuffle_options      Boolean?               @default(true)
+  show_result_after    Boolean?               @default(true)
+  show_answer_after    Boolean?               @default(false)
+  available_from       DateTime?              @db.Timestamp(6)
+  available_until      DateTime?              @db.Timestamp(6)
+  instructions         String?
+  created_at           DateTime?              @db.Timestamp(6)
+  exam_classes         exam_classes[]
+  exam_questions       exam_questions[]
+  exam_section_configs exam_section_configs[]
+  exam_sessions        exam_sessions[]
+  users                users                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  exam_templates       exam_templates?        @relation(fields: [template_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model RolePermission {
-  roleId       String     @db.Uuid
-  permissionId String     @db.Uuid
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model grades {
+  id              String    @id @db.Uuid
+  student_id      String    @db.Uuid
+  class_id        String    @db.Uuid
+  assignment_avg  Decimal?  @db.Decimal(5, 2)
+  exam_avg        Decimal?  @db.Decimal(5, 2)
+  attendance_rate Decimal?  @db.Decimal(5, 2)
+  final_score     Decimal?  @db.Decimal(5, 2)
+  updated_at      DateTime? @db.Timestamp(6)
+  classes         classes   @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users     @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@id([roleId, permissionId])
-  @@map("role_permissions")
+  @@unique([student_id, class_id], map: "grades_student_id_class_id_idx")
 }
 
-model UserRole {
-  userId     String    @db.Uuid
-  roleId     String    @db.Uuid
-  assignedAt DateTime  @default(now())
-  revokedAt  DateTime?
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role       Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-  @@id([userId, roleId])
-  @@map("user_roles")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model invoices {
+  id            String      @id @db.Uuid
+  enrollment_id String      @db.Uuid
+  amount        Decimal     @db.Decimal(12, 2)
+  paid_amount   Decimal?    @default(0) @db.Decimal(12, 2)
+  due_date      DateTime?   @db.Date
+  status        String?     @db.VarChar(20)
+  created_at    DateTime?   @db.Timestamp(6)
+  enrollments   enrollments @relation(fields: [enrollment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments      payments[]
 }
 
-model Session {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
-  deviceName String?  @db.VarChar(191)
-  ipAddress  String?  @db.VarChar(100)
-  status     String   @db.VarChar(100)
-  risk       String?  @db.VarChar(100)
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model lesson_progress {
+  id           String    @id @db.Uuid
+  lesson_id    String    @db.Uuid
+  student_id   String    @db.Uuid
+  is_completed Boolean?  @default(false)
+  completed_at DateTime? @db.Timestamp(6)
+  lessons      lessons   @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users        users     @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@map("sessions")
-  @@index([userId, createdAt])
-  @@index([userId, status, expiresAt])
-  @@index([expiresAt])
+  @@unique([lesson_id, student_id], map: "lesson_progress_lesson_id_student_id_idx")
 }
 
-model AuditLog {
-  id         String   @id @default(uuid()) @db.Uuid
-  actorId    String?  @db.Uuid
-  module     String   @db.VarChar(191)
-  action     String   @db.VarChar(191)
-  targetId   String?  @db.Uuid
-  targetType String?  @db.VarChar(191)
-  before     Json?
-  after      Json?
-  timestamp  DateTime @default(now())
-  actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
-
-  @@map("audit_logs")
-  @@index([module, timestamp])
-  @@index([actorId, timestamp])
-  @@index([targetId, targetType, timestamp])
-  @@index([timestamp])
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model lessons {
+  id              String            @id @db.Uuid
+  module_id       String            @db.Uuid
+  title           String            @db.VarChar(200)
+  content         String?
+  order_index     Int?              @default(0)
+  is_published    Boolean?          @default(false)
+  published_at    DateTime?         @db.Timestamp(6)
+  created_by      String?           @db.Uuid
+  lesson_progress lesson_progress[]
+  users           users?            @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  course_modules  course_modules    @relation(fields: [module_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-// ─────────────────────────────────────────
-// 2. ORGANIZATION
-// ─────────────────────────────────────────
-
-model Branch {
-  id             String  @id @default(uuid()) @db.Uuid
-  name           String  @db.VarChar(191)
-  location       String? @db.Text
-  status         String  @db.VarChar(100)
-  parentBranchId String? @db.Uuid
-  timezone       String? @db.VarChar(100)
-  currency       String? @db.VarChar(10)
-
-  // Relationships
-  parentBranch       Branch?             @relation("BranchParent", fields: [parentBranchId], references: [id])
-  childBranches      Branch[]            @relation("BranchParent")
-  users              User[]              @relation("UserBranch")
-  classes            Class[]
-  leads              Lead[]
-  salarySetting      SalarySetting[]
-  payrollRuns        PayrollRun[]
-  sessionPays        SessionPay[]
-  payrollAdjustments PayrollAdjustment[]
-
-  @@map("branches")
-  @@index([name])
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model mock_test_history {
+  id             String        @id @db.Uuid
+  student_id     String        @db.Uuid
+  session_id     String        @db.Uuid
+  exam_type      String?       @db.VarChar(30)
+  subject        String?       @db.VarChar(50)
+  score          Decimal?      @db.Decimal(6, 2)
+  band_score     Decimal?      @db.Decimal(3, 1)
+  section_scores Json?
+  percentile     Decimal?      @db.Decimal(5, 2)
+  weak_topics    String[]
+  taken_at       DateTime?     @db.Timestamp(6)
+  exam_sessions  exam_sessions @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users         @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model Course {
-  id            String  @id @default(uuid()) @db.Uuid
-  name          String  @db.VarChar(191)
-  level         String  @db.VarChar(100)
-  description   String? @db.Text
-  status        String  @db.VarChar(100)
-  durationWeeks Int
-
-  // Relationships
-  classes             Class[]
-  coursePrerequisites CoursePrerequisite[] @relation("CoursePrerequisites")
-  isPrerequisiteOf    CoursePrerequisite[] @relation("IsPrerequisiteOf")
-
-  @@map("courses")
-  @@index([name])
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model notifications {
+  id         String    @id @db.Uuid
+  user_id    String    @db.Uuid
+  type       String?   @db.VarChar(50)
+  title      String?   @db.VarChar(200)
+  body       String?
+  is_read    Boolean?  @default(false)
+  ref_type   String?   @db.VarChar(50)
+  ref_id     String?   @db.Uuid
+  created_at DateTime? @db.Timestamp(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model CoursePrerequisite {
-  id             String @id @default(uuid()) @db.Uuid
-  courseId       String @db.Uuid
-  prerequisiteId String @db.Uuid
-  course         Course @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
-  prerequisite   Course @relation("IsPrerequisiteOf", fields: [prerequisiteId], references: [id], onDelete: Cascade)
-
-  @@map("course_prerequisites")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model passages {
+  id         String      @id @db.Uuid
+  title      String?     @db.VarChar(200)
+  content    String
+  source     String?     @db.VarChar(255)
+  subject    String?     @db.VarChar(50)
+  difficulty String?     @db.VarChar(20)
+  word_count Int?
+  tags       String[]
+  created_by String?     @db.Uuid
+  created_at DateTime?   @db.Timestamp(6)
+  users      users?      @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questions  questions[]
 }
 
-// ─────────────────────────────────────────
-// 3. ACADEMIC
-// ─────────────────────────────────────────
-
-model Class {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(191)
-  courseId  String   @db.Uuid
-  teacherId String?  @db.Uuid
-  branchId  String   @db.Uuid
-  status    String   @db.VarChar(100)
-  capacity  Int
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-
-  // Relationships
-  course            Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  teacher           User?              @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
-  branch            Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  enrollments       Enrollment[]
-  assignments       Assignment[]
-  resources         Resource[]
-  attendanceRecords AttendanceRecord[]
-  gradeComponents   GradeComponent[]
-  activityLogs      ActivityLog[]
-  classExams        ClassExam[]
-
-  @@map("classes")
-  @@index([branchId, startDate])
-  @@index([teacherId, startDate])
-  @@index([courseId, startDate])
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model payments {
+  id         String    @id @db.Uuid
+  invoice_id String    @db.Uuid
+  amount     Decimal   @db.Decimal(12, 2)
+  method     String?   @db.VarChar(30)
+  paid_at    DateTime? @db.Timestamp(6)
+  note       String?
+  created_by String?   @db.Uuid
+  users      users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  invoices   invoices  @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model Enrollment {
-  id         String   @id @default(uuid()) @db.Uuid
-  classId    String   @db.Uuid
-  studentId  String   @db.Uuid
-  status     String   @db.VarChar(100)
-  enrolledAt DateTime @default(now())
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model questions {
+  id              String           @id @db.Uuid
+  created_by      String           @db.Uuid
+  passage_id      String?          @db.Uuid
+  section_type    String?          @db.VarChar(20)
+  question_format String           @db.VarChar(30)
+  content         String
+  options         Json?
+  correct_answer  Json?
+  match_pairs     Json?
+  order_items     Json?
+  explanation     String?
+  difficulty      String?          @db.VarChar(20)
+  bloom_level     String?          @db.VarChar(20)
+  subject         String?          @db.VarChar(50)
+  chapter         String?          @db.VarChar(100)
+  topic           String?          @db.VarChar(150)
+  exam_type_tags  String[]
+  is_public       Boolean?         @default(false)
+  created_at      DateTime?        @db.Timestamp(6)
+  exam_answers    exam_answers[]
+  exam_questions  exam_questions[]
+  users           users            @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  passages        passages?        @relation(fields: [passage_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-  student User  @relation("EnrollmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([classId, studentId])
-  @@map("enrollments")
-  @@index([studentId, enrolledAt])
-  @@index([classId, enrolledAt])
+  @@index([difficulty])
+  @@index([passage_id])
+  @@index([question_format])
+  @@index([subject])
 }
 
-model Assignment {
-  id          String   @id @default(uuid()) @db.Uuid
-  classId     String   @db.Uuid
-  title       String   @db.VarChar(191)
-  description String?  @db.Text
-  dueDate     DateTime @db.Date
-  maxScore    Float
-
-  // Relationships
-  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
-  submissions AssignmentSubmission[]
-
-  @@map("assignments")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model roles {
+  id          String       @id @db.Uuid
+  name        String?      @unique @db.VarChar(50)
+  permissions Json?
+  user_roles  user_roles[]
 }
 
-model AssignmentSubmission {
-  id           String   @id @default(uuid()) @db.Uuid
-  assignmentId String   @db.Uuid
-  studentId    String   @db.Uuid
-  submittedAt  DateTime @default(now())
-  fileUrl      String?  @db.Text
-  score        Float?
-  feedback     String?  @db.Text
-  status       String   @db.VarChar(100)
-
-  // Relationships
-  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student    User       @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@map("assignment_submissions")
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model rooms {
+  id              String            @id @db.Uuid
+  branch_id       String            @db.Uuid
+  name            String?           @db.VarChar(50)
+  capacity        Int?
+  is_active       Boolean?          @default(true)
+  class_schedules class_schedules[]
+  branches        branches          @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model AttendanceRecord {
-  id           String   @id @default(uuid()) @db.Uuid
-  classId      String   @db.Uuid
-  date         DateTime @db.Date
-  sessionLabel String?  @db.VarChar(191)
-  presentCount Int
-  absentCount  Int
-  lateCount    Int
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model student_targets {
+  id            String    @id @db.Uuid
+  student_id    String    @db.Uuid
+  exam_type     String?   @db.VarChar(30)
+  subject       String?   @db.VarChar(50)
+  target_score  Decimal?  @db.Decimal(6, 2)
+  target_band   Decimal?  @db.Decimal(3, 1)
+  target_date   DateTime? @db.Date
+  current_score Decimal?  @db.Decimal(6, 2)
+  current_band  Decimal?  @db.Decimal(3, 1)
+  created_at    DateTime? @db.Timestamp(6)
+  updated_at    DateTime? @db.Timestamp(6)
+  users         users     @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  class   Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
-  details AttendanceDetail[]
-
-  @@map("attendance_records")
+  @@unique([student_id, exam_type, subject], map: "student_targets_student_id_exam_type_subject_idx")
 }
 
-model AttendanceDetail {
-  id                 String  @id @default(uuid()) @db.Uuid
-  attendanceRecordId String  @db.Uuid
-  studentId          String  @db.Uuid
-  status             String  @db.VarChar(100)
-  note               String? @db.Text
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model submissions {
+  id                                  String      @id @db.Uuid
+  assignment_id                       String      @db.Uuid
+  student_id                          String      @db.Uuid
+  content                             String?
+  file_url                            String?
+  score                               Decimal?    @db.Decimal(5, 2)
+  feedback                            String?
+  graded_by                           String?     @db.Uuid
+  graded_at                           DateTime?   @db.Timestamp(6)
+  submitted_at                        DateTime?   @default(now()) @db.Timestamp(6)
+  assignments                         assignments @relation(fields: [assignment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_submissions_graded_byTousers  users?      @relation("submissions_graded_byTousers", fields: [graded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_submissions_student_idTousers users       @relation("submissions_student_idTousers", fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
-  student          User             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@map("attendance_details")
+  @@index([assignment_id, student_id])
 }
 
-model GradeComponent {
-  id      String @id @default(uuid()) @db.Uuid
-  classId String @db.Uuid
-  name    String @db.VarChar(191)
-  weight  Float
-  type    String @db.VarChar(100)
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model user_roles {
+  id          String    @id @db.Uuid
+  user_id     String    @db.Uuid
+  role_id     String    @db.Uuid
+  branch_id   String?   @db.Uuid
+  assigned_at DateTime? @db.Timestamp(6)
+  branches    branches? @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roles       roles     @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  // Relationships
-  class         Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
-  studentGrades StudentGrade[]
-
-  @@map("grade_components")
+  @@unique([user_id, role_id, branch_id], map: "user_roles_user_id_role_id_branch_id_idx")
 }
 
-model StudentGrade {
-  id          String   @id @default(uuid()) @db.Uuid
-  componentId String   @db.Uuid
-  studentId   String   @db.Uuid
-  score       Float
-  gradedBy    String?  @db.Uuid
-  gradedAt    DateTime @default(now())
-
-  // Relationships
-  component GradeComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
-  student   User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@map("student_grades")
-}
-
-model Resource {
-  id      String @id @default(uuid()) @db.Uuid
-  classId String @db.Uuid
-  title   String @db.VarChar(191)
-  type    String @db.VarChar(100)
-  url     String @db.Text
-
-  // Relationships
-  class        Class                 @relation(fields: [classId], references: [id], onDelete: Cascade)
-  downloadLogs ResourceDownloadLog[]
-
-  @@map("resources")
-}
-
-model ResourceDownloadLog {
-  id           String   @id @default(uuid()) @db.Uuid
-  resourceId   String   @db.Uuid
-  userId       String   @db.Uuid
-  downloadedAt DateTime @default(now())
-
-  // Relationships
-  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  downloader User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("resource_download_logs")
-}
-
-model ActivityLog {
-  id         String   @id @default(uuid()) @db.Uuid
-  classId    String   @db.Uuid
-  actorId    String   @db.Uuid
-  capability String   @db.VarChar(191)
-  timestamp  DateTime @default(now())
-
-  // Relationships
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-  actor User  @relation(fields: [actorId], references: [id], onDelete: Cascade)
-
-  @@map("activity_logs")
-}
-
-// ─────────────────────────────────────────
-// 4. CRM / SALES
-// ─────────────────────────────────────────
-
-model Lead {
-  id        String   @id @default(uuid()) @db.Uuid
-  branchId  String?  @db.Uuid
-  ownerId   String?  @db.Uuid
-  name      String   @db.VarChar(191)
-  phone     String   @db.VarChar(100)
-  email     String?  @db.VarChar(191)
-  source    String?  @db.VarChar(191)
-  status    String   @db.VarChar(100)
-  score     Int      @default(0)
-  createdAt DateTime @default(now())
-
-  // Relationships
-  branch        Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  owner         User?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  statusHistory LeadStatusHistory[]
-  consultations Consultation[]
-
-  @@map("leads")
-  @@index([ownerId, createdAt])
-  @@index([status, createdAt])
-  @@index([branchId, createdAt])
-  @@index([phone])
-}
-
-model LeadStatusHistory {
-  id         String   @id @default(uuid()) @db.Uuid
-  leadId     String   @db.Uuid
-  fromStatus String   @db.VarChar(100)
-  toStatus   String   @db.VarChar(100)
-  changedBy  String?  @db.Uuid
-  changedAt  DateTime @default(now())
-  note       String?  @db.Text
-
-  // Relationships
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  @@map("lead_status_histories")
-  @@index([leadId, changedAt])
-}
-
-model Consultation {
-  id           String    @id @default(uuid()) @db.Uuid
-  leadId       String    @db.Uuid
-  staffId      String?   @db.Uuid
-  date         DateTime  @db.Date
-  outcome      String?   @db.VarChar(191)
-  followUpNote String?   @db.Text
-  followUpDate DateTime? @db.Date
-  status       String    @db.VarChar(100)
-
-  // Relationships
-  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  staff User? @relation(fields: [staffId], references: [id], onDelete: SetNull)
-
-  @@map("consultations")
-  @@index([leadId, date])
-  @@index([staffId, date])
-}
-
-// ─────────────────────────────────────────
-// 5. FAMILY
-// ─────────────────────────────────────────
-
-model GuardianLink {
-  id                String    @id @default(uuid()) @db.Uuid
-  studentId         String    @db.Uuid
-  guardianId        String    @db.Uuid
-  relationshipType  String    @db.VarChar(191)
-  status            String    @db.VarChar(100)
-  isPrimary         Boolean   @default(false)
-  verifiedAt        DateTime?
-  canViewGrades     Boolean   @default(false)
-  canViewAttendance Boolean   @default(false)
-  canViewFinance    Boolean   @default(false)
-
-  // Relationships
-  student  User @relation("GuardianLinkStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  guardian User @relation("GuardianLinkGuardian", fields: [guardianId], references: [id], onDelete: Cascade)
-
-  @@map("guardian_links")
-}
-
-// ─────────────────────────────────────────
-// 6. EXAM ENGINE
-// ─────────────────────────────────────────
-
-model ClassExam {
-  id      String @id @default(uuid()) @db.Uuid
-  classId String @db.Uuid
-  examId  String @db.Uuid
-
-  // Relationships
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
-  exam  Exam  @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  @@map("class_exams")
-}
-
-model Exam {
-  id                   String  @id @default(uuid()) @db.Uuid
-  createdById          String? @db.Uuid
-  category             String? @db.VarChar(191)
-  title                String  @db.VarChar(191)
-  status               String  @db.VarChar(100)
-  totalDurationMinutes Int
-  allowReview          Boolean @default(false)
-  allowSkip            Boolean @default(false)
-  randomizeQuestions   Boolean @default(false)
-  randomizeOptions     Boolean @default(false)
-  showScore            Boolean @default(false)
-  showAnswers          Boolean @default(false)
-  passwordProtected    Boolean @default(false)
-  requireProctoring    Boolean @default(false)
-
-  // Relationships
-  examSections  ExamSection[]
-  examSchedules ExamSchedule[]
-  classExams    ClassExam[]
-  examAttempts  ExamAttempt[]
-
-  @@map("exams")
-}
-
-model ExamSchedule {
-  id          String   @id @default(uuid()) @db.Uuid
-  examId      String   @db.Uuid
-  startAt     DateTime
-  endAt       DateTime
-  maxAttempts Int
-  password    String?  @db.VarChar(191)
-
-  // Relationships
-  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  @@map("exam_schedules")
-}
-
-model ExamSection {
-  id              String @id @default(uuid()) @db.Uuid
-  examId          String @db.Uuid
-  title           String @db.VarChar(191)
-  durationMinutes Int
-  order           Int
-
-  // Relationships
-  exam          Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examQuestions ExamQuestion[]
-
-  @@map("exam_sections")
-}
-
-model ExamQuestion {
-  id           String  @id @default(uuid()) @db.Uuid
-  sectionId    String  @db.Uuid
-  type         String  @db.VarChar(100)
-  instructions String? @db.Text
-  points       Float
-  order        Int
-
-  // Relationships
-  section            ExamSection         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  questionOptions    QuestionOption[]
-  questionBlanks     QuestionBlank[]
-  questionMatchItems QuestionMatchItem[]
-  questionRubric     QuestionRubric?
-  attemptAnswers     AttemptAnswer[]
-
-  @@map("exam_questions")
-}
-
-model QuestionOption {
-  id         String  @id @default(uuid()) @db.Uuid
-  questionId String  @db.Uuid
-  text       String  @db.Text
-  isCorrect  Boolean @default(false)
-  order      Int
-
-  // Relationships
-  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("question_options")
-}
-
-model QuestionBlank {
-  id         String @id @default(uuid()) @db.Uuid
-  questionId String @db.Uuid
-  answer     String @db.Text
-  blankIndex Int
-
-  // Relationships
-  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("question_blanks")
-}
-
-model QuestionMatchItem {
-  id          String  @id @default(uuid()) @db.Uuid
-  questionId  String  @db.Uuid
-  text        String  @db.Text
-  itemType    String  @db.VarChar(100)
-  matchPairId String? @db.Uuid
-
-  // Relationships
-  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("question_match_items")
-}
-
-model QuestionRubric {
-  id          String @id @default(uuid()) @db.Uuid
-  questionId  String @unique @db.Uuid
-  rubricGuide String @db.Text
-  maxScore    Float
-
-  // Relationships
-  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("question_rubrics")
-}
-
-model ExamAttempt {
-  id            String    @id @default(uuid()) @db.Uuid
-  examId        String    @db.Uuid
-  studentId     String    @db.Uuid
-  status        String    @db.VarChar(100)
-  score         Float?
-  attemptNumber Int
-  startedAt     DateTime  @default(now())
-  submittedAt   DateTime?
-
-  // Relationships
-  exam           Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student        User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  attemptAnswers AttemptAnswer[]
-
-  @@map("exam_attempts")
-}
-
-model AttemptAnswer {
-  id           String   @id @default(uuid()) @db.Uuid
-  attemptId    String   @db.Uuid
-  questionId   String   @db.Uuid
-  answerData   Json?
-  isCorrect    Boolean?
-  scoreAwarded Float?
-
-  // Relationships
-  attempt  ExamAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@map("attempt_answers")
-}
-
-// ─────────────────────────────────────────
-// 7. PAYROLL
-// ─────────────────────────────────────────
-
-model SalarySetting {
-  id            String    @id @default(uuid()) @db.Uuid
-  teacherId     String    @unique @db.Uuid
-  branchId      String    @db.Uuid
-  baseRate      Decimal   @db.Decimal(12, 2)
-  sessionRate   Decimal   @db.Decimal(12, 2)
-  overtimeRate  Decimal   @db.Decimal(12, 2)
-  status        String    @db.VarChar(100)
-  effectiveFrom DateTime  @db.Date
-  effectiveTo   DateTime? @db.Date
-
-  // Relationships
-  teacher User   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  branch  Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  @@map("salary_settings")
-}
-
-model SessionPay {
-  id           String   @id @default(uuid()) @db.Uuid
-  teacherId    String   @db.Uuid
-  branchId     String   @db.Uuid
-  classId      String?  @db.Uuid
-  payrollRunId String?  @db.Uuid
-  sessionDate  DateTime @db.Date
-  sessionCount Int
-  amount       Decimal  @db.Decimal(12, 2)
-  bonus        Decimal  @default(0) @db.Decimal(12, 2)
-
-  // Relationships
-  teacher    User        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
-
-  @@map("session_pays")
-  @@index([teacherId, sessionDate])
-  @@index([branchId, sessionDate])
-  @@index([payrollRunId])
-}
-
-model PayrollAdjustment {
-  id           String  @id @default(uuid()) @db.Uuid
-  teacherId    String  @db.Uuid
-  branchId     String  @db.Uuid
-  payrollRunId String? @db.Uuid
-  periodYear   Int
-  periodMonth  Int
-  type         String  @db.VarChar(100)
-  amount       Decimal @db.Decimal(12, 2)
-  status       String  @db.VarChar(100)
-  note         String? @db.Text
-
-  // Relationships
-  teacher    User        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
-
-  @@map("payroll_adjustments")
-  @@index([teacherId, periodYear, periodMonth])
-  @@index([branchId, periodYear, periodMonth])
-  @@index([payrollRunId])
-}
-
-model PayrollRun {
-  id            String   @id @default(uuid()) @db.Uuid
-  branchId      String   @db.Uuid
-  periodYear    Int
-  periodMonth   Int
-  totalTeachers Int
-  grossAmount   Decimal  @db.Decimal(12, 2)
-  netAmount     Decimal  @db.Decimal(12, 2)
-  status        String   @db.VarChar(100)
-  runAt         DateTime @default(now())
-  runBy         String?  @db.Uuid
-
-  // Relationships
-  branch             Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  runByUser          User?               @relation(fields: [runBy], references: [id], onDelete: SetNull)
-  sessionPays        SessionPay[]
-  payrollAdjustments PayrollAdjustment[]
-
-  @@map("payroll_runs")
-  @@index([branchId, runAt])
-  @@index([periodYear, periodMonth])
-  @@index([runBy])
-}
-
-// ─────────────────────────────────────────
-// 8. NOTIFICATION
-// ─────────────────────────────────────────
-
-model Notification {
-  id          String    @id @default(uuid()) @db.Uuid
-  senderId    String?   @db.Uuid
-  title       String    @db.VarChar(191)
-  body        String    @db.Text
-  type        String    @db.VarChar(100)
-  status      String    @db.VarChar(100)
-  scheduledAt DateTime?
-  sentAt      DateTime?
-
-  // Relationships
-  sender     User?                   @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
-  recipients NotificationRecipient[]
-
-  @@map("notifications")
-}
-
-model NotificationRecipient {
-  id             String    @id @default(uuid()) @db.Uuid
-  notificationId String    @db.Uuid
-  userId         String    @db.Uuid
-  isRead         Boolean   @default(false)
-  readAt         DateTime?
-
-  // Relationships
-  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notification_recipients")
-  @@index([userId, isRead])
-  @@index([notificationId])
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users {
+  id                                                 String                 @id @db.Uuid
+  full_name                                          String                 @db.VarChar(100)
+  email                                              String                 @unique @db.VarChar(150)
+  phone                                              String?                @db.VarChar(20)
+  password_hash                                      String                 @db.VarChar(255)
+  avatar_url                                         String?
+  date_of_birth                                      DateTime?              @db.Date
+  gender                                             String?                @db.VarChar(10)
+  address                                            String?
+  status                                             String?                @db.VarChar(20)
+  created_at                                         DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at                                         DateTime?              @db.Timestamp(6)
+  appeal_requests_appeal_requests_reviewed_byTousers appeal_requests[]      @relation("appeal_requests_reviewed_byTousers")
+  appeal_requests_appeal_requests_student_idTousers  appeal_requests[]      @relation("appeal_requests_student_idTousers")
+  assignments                                        assignments[]
+  attendances_attendances_recorded_byTousers         attendances[]          @relation("attendances_recorded_byTousers")
+  attendances_attendances_student_idTousers          attendances[]          @relation("attendances_student_idTousers")
+  audit_logs                                         audit_logs[]
+  band_rubrics                                       band_rubrics[]
+  classes                                            classes[]
+  doc_folders                                        doc_folders[]
+  document_access_logs                               document_access_logs[]
+  document_pins                                      document_pins[]
+  documents                                          documents[]
+  enrollments                                        enrollments[]
+  exam_classes                                       exam_classes[]
+  exam_sessions_exam_sessions_reviewed_byTousers     exam_sessions[]        @relation("exam_sessions_reviewed_byTousers")
+  exam_sessions_exam_sessions_student_idTousers      exam_sessions[]        @relation("exam_sessions_student_idTousers")
+  exam_templates                                     exam_templates[]
+  exams                                              exams[]
+  grades                                             grades[]
+  lesson_progress                                    lesson_progress[]
+  lessons                                            lessons[]
+  mock_test_history                                  mock_test_history[]
+  notifications                                      notifications[]
+  passages                                           passages[]
+  payments                                           payments[]
+  questions                                          questions[]
+  student_targets                                    student_targets[]
+  submissions_submissions_graded_byTousers           submissions[]          @relation("submissions_graded_byTousers")
+  submissions_submissions_student_idTousers          submissions[]          @relation("submissions_student_idTousers")
+  user_roles                                         user_roles[]
 }
