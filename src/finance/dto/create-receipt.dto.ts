@@ -2,13 +2,13 @@ import { IsDateString, IsNumber, IsOptional, IsString, IsUUID } from 'class-vali
 
 export class CreateReceiptDto {
   @IsUUID()
-  invoice_id: string;
+  invoice_id!: string;
 
   @IsNumber()
-  amount_paid: number;
+  amount_paid!: number;
 
   @IsString()
-  method: string;
+  method!: string;
 
   @IsOptional()
   @IsDateString()

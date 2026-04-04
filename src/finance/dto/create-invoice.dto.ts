@@ -6,19 +6,19 @@ export class CreateInvoiceDto {
   enrollment_id?: string;
 
   @IsUUID()
-  student_id: string;
+  student_id!: string;
 
   @IsOptional()
   @IsUUID()
   branch_id?: string;
 
   @IsNumber()
-  amount: number;
+  amount!: number;
 
   @IsOptional()
   @IsUUID()
   promotion_id?: string;
 
   @IsString()
-  status: string;
+  status!: string;
 }
