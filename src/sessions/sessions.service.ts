@@ -25,12 +25,33 @@ export class SessionsService {
     });
   }
 
-  async findUserSessions(userId: string, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
+  async findUserSessions(userId: string, page = 1, limit = 10, detail = false) {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const skip = (page - 1) * safeLimit;
+
+    if (detail) {
+      return this.prisma.session.findMany({
+        where: { userId },
+        skip,
+        take: safeLimit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+    }
+
     return this.prisma.session.findMany({
       where: { userId },
       skip,
-      take: limit,
+      take: safeLimit,
       orderBy: { createdAt: 'desc' },
     });
   }

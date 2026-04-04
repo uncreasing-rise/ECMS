@@ -19,7 +19,7 @@ const create_lead_dto_1 = require("./dto/create-lead.dto");
 const update_lead_dto_1 = require("./dto/update-lead.dto");
 const create_consultation_dto_1 = require("./dto/create-consultation.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let LeadsController = class LeadsController {
     leadsService;
     constructor(leadsService) {
@@ -29,13 +29,13 @@ let LeadsController = class LeadsController {
         return this.leadsService.createLead(createLeadDto);
     }
     findAllLeads(query) {
-        return this.leadsService.findAllLeads(query.page, query.limit);
+        return this.leadsService.findAllLeads(query.page, query.limit, query.detail);
     }
     findLeadsByOwner(ownerId, query) {
-        return this.leadsService.findLeadsByOwner(ownerId, query.page, query.limit);
+        return this.leadsService.findLeadsByOwner(ownerId, query.page, query.limit, query.detail);
     }
     findLeadsByStatus(status, query) {
-        return this.leadsService.findLeadsByStatus(status, query.page, query.limit);
+        return this.leadsService.findLeadsByStatus(status, query.page, query.limit, query.detail);
     }
     findLeadById(id) {
         return this.leadsService.findLeadById(id);
@@ -73,7 +73,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], LeadsController.prototype, "findAllLeads", null);
 __decorate([
@@ -81,7 +81,7 @@ __decorate([
     __param(0, (0, common_1.Param)('ownerId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], LeadsController.prototype, "findLeadsByOwner", null);
 __decorate([
@@ -89,7 +89,7 @@ __decorate([
     __param(0, (0, common_1.Param)('status')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], LeadsController.prototype, "findLeadsByStatus", null);
 __decorate([

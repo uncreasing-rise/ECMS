@@ -29,6 +29,7 @@ const audit_logs_module_1 = require("./audit-logs/audit-logs.module");
 const leads_module_1 = require("./leads/leads.module");
 const infrastructure_module_1 = require("./infrastructure/infrastructure.module");
 const app_throttler_guard_1 = require("./common/guards/app-throttler.guard");
+const read_cache_interceptor_1 = require("./common/interceptors/read-cache.interceptor");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -92,6 +93,10 @@ exports.AppModule = AppModule = __decorate([
         controllers: [app_controller_1.AppController],
         providers: [
             app_service_1.AppService,
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: read_cache_interceptor_1.ReadCacheInterceptor,
+            },
             {
                 provide: core_1.APP_GUARD,
                 useClass: app_throttler_guard_1.AppThrottlerGuard,

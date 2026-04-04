@@ -4,7 +4,7 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 export declare class BranchesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(page?: number, limit?: number, detail?: boolean): import("@prisma/client").Prisma.PrismaPromise<{
         id: string;
         status: string;
         _count: {

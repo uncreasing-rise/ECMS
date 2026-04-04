@@ -14,6 +14,7 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
@@ -28,8 +29,8 @@ export class RolesController {
   }
 
   @Get()
-  findAllRoles(@Query() query: PaginationQueryDto) {
-    return this.rolesService.findAllRoles(query.page, query.limit);
+  findAllRoles(@Query() query: ListQueryDto) {
+    return this.rolesService.findAllRoles(query.page, query.limit, query.detail);
   }
 
   @Get(':id')

@@ -13,7 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('classes')
@@ -21,8 +21,8 @@ export class ClassesController {
 	constructor(private readonly classesService: ClassesService) {}
 
 	@Get()
-	findAll(@Query() query: PaginationQueryDto) {
-		return this.classesService.findAll(query.page, query.limit);
+	findAll(@Query() query: ListQueryDto) {
+		return this.classesService.findAll(query.page, query.limit, query.detail);
 	}
 
 	@Get(':id')

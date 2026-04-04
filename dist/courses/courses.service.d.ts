@@ -4,7 +4,26 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 export declare class CoursesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(page?: number, limit?: number, detail?: boolean): import("@prisma/client").Prisma.PrismaPromise<({
+        _count: {
+            classes: number;
+        };
+        classes: {
+            id: string;
+            status: string;
+            name: string;
+            capacity: number;
+            startDate: Date;
+            endDate: Date;
+        }[];
+    } & {
+        id: string;
+        status: string;
+        name: string;
+        description: string | null;
+        level: string;
+        durationWeeks: number;
+    })[]> | import("@prisma/client").Prisma.PrismaPromise<{
         id: string;
         status: string;
         _count: {

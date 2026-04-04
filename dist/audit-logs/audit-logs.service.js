@@ -30,42 +30,105 @@ let AuditLogsService = class AuditLogsService {
             },
         });
     }
-    async findLogs(page = 1, limit = 100) {
-        const skip = (page - 1) * limit;
+    async findLogs(page = 1, limit = 100, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 100);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.auditLog.findMany({
+                skip,
+                take: safeLimit,
+                orderBy: { timestamp: 'desc' },
+            });
+        }
         return this.prisma.auditLog.findMany({
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { timestamp: 'desc' },
+            select: {
+                id: true,
+                actorId: true,
+                module: true,
+                action: true,
+                targetId: true,
+                targetType: true,
+                timestamp: true,
+            },
         });
     }
     async findLogById(id) {
         return this.prisma.auditLog.findUnique({ where: { id } });
     }
-    async findLogsByModule(module, page = 1, limit = 50) {
-        const skip = (page - 1) * limit;
+    async findLogsByModule(module, page = 1, limit = 50, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 100);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.auditLog.findMany({
+                where: { module },
+                skip,
+                take: safeLimit,
+                orderBy: { timestamp: 'desc' },
+            });
+        }
         return this.prisma.auditLog.findMany({
             where: { module },
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { timestamp: 'desc' },
+            select: {
+                id: true,
+                actorId: true,
+                module: true,
+                action: true,
+                targetId: true,
+                targetType: true,
+                timestamp: true,
+            },
         });
     }
-    async findLogsByActor(actorId, page = 1, limit = 50) {
-        const skip = (page - 1) * limit;
+    async findLogsByActor(actorId, page = 1, limit = 50, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 100);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.auditLog.findMany({
+                where: { actorId },
+                skip,
+                take: safeLimit,
+                orderBy: { timestamp: 'desc' },
+            });
+        }
         return this.prisma.auditLog.findMany({
             where: { actorId },
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { timestamp: 'desc' },
+            select: {
+                id: true,
+                actorId: true,
+                module: true,
+                action: true,
+                targetId: true,
+                targetType: true,
+                timestamp: true,
+            },
         });
     }
     async findLogsByTarget(targetId, targetType, page = 1, limit = 50) {
-        const skip = (page - 1) * limit;
+        const safeLimit = Math.min(Math.max(limit, 1), 100);
+        const skip = (page - 1) * safeLimit;
         return this.prisma.auditLog.findMany({
             where: { targetId, targetType },
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { timestamp: 'desc' },
+            select: {
+                id: true,
+                actorId: true,
+                module: true,
+                action: true,
+                targetId: true,
+                targetType: true,
+                timestamp: true,
+            },
         });
     }
     async findLogsByDateRange(startDate, endDate) {

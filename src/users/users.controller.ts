@@ -13,7 +13,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users')
@@ -21,8 +21,8 @@ export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
 	@Get()
-	findAll(@Query() query: PaginationQueryDto) {
-		return this.usersService.findAll(query.page, query.limit);
+	findAll(@Query() query: ListQueryDto) {
+		return this.usersService.findAll(query.page, query.limit, query.detail);
 	}
 
 	@Get(':id')

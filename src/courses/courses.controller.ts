@@ -13,7 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('courses')
@@ -21,8 +21,8 @@ export class CoursesController {
 	constructor(private readonly coursesService: CoursesService) {}
 
 	@Get()
-	findAll(@Query() query: PaginationQueryDto) {
-		return this.coursesService.findAll(query.page, query.limit);
+	findAll(@Query() query: ListQueryDto) {
+		return this.coursesService.findAll(query.page, query.limit, query.detail);
 	}
 
 	@Get(':id')

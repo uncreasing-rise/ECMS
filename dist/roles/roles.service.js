@@ -20,28 +20,82 @@ let RolesService = class RolesService {
     async createRole(data) {
         return this.prisma.role.create({
             data: { name: data.name, status: data.status },
-            include: { rolePermissions: true },
+            include: {
+                _count: {
+                    select: { rolePermissions: true, userRoles: true },
+                },
+            },
         });
     }
     async findRoleById(id) {
         return this.prisma.role.findUnique({
             where: { id },
-            include: { rolePermissions: true },
+            include: {
+                rolePermissions: {
+                    select: {
+                        permission: {
+                            select: {
+                                id: true,
+                                name: true,
+                                category: true,
+                                action: true,
+                            },
+                        },
+                    },
+                },
+                _count: {
+                    select: { userRoles: true },
+                },
+            },
         });
     }
-    async findAllRoles(page = 1, limit = 10) {
-        const skip = (page - 1) * limit;
+    async findAllRoles(page = 1, limit = 10, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 50);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.role.findMany({
+                skip,
+                take: safeLimit,
+                orderBy: { name: 'asc' },
+                include: {
+                    rolePermissions: {
+                        select: {
+                            permission: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    category: true,
+                                    action: true,
+                                },
+                            },
+                        },
+                    },
+                    _count: {
+                        select: { userRoles: true },
+                    },
+                },
+            });
+        }
         return this.prisma.role.findMany({
             skip,
-            take: limit,
-            include: { rolePermissions: true },
+            take: safeLimit,
+            orderBy: { name: 'asc' },
+            include: {
+                _count: {
+                    select: { rolePermissions: true, userRoles: true },
+                },
+            },
         });
     }
     async updateRole(id, data) {
         return this.prisma.role.update({
             where: { id },
             data,
-            include: { rolePermissions: true },
+            include: {
+                _count: {
+                    select: { rolePermissions: true, userRoles: true },
+                },
+            },
         });
     }
     async deleteRole(id) {
@@ -70,12 +124,22 @@ let RolesService = class RolesService {
         return this.prisma.permission.delete({ where: { id } });
     }
     async getRolePermissions(roleId, page = 1, limit = 50) {
+        const safeLimit = Math.min(Math.max(limit, 1), 50);
         const skip = (page - 1) * limit;
         return this.prisma.rolePermission.findMany({
             where: { roleId },
             skip,
-            take: limit,
-            include: { permission: true },
+            take: safeLimit,
+            include: {
+                permission: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: true,
+                        action: true,
+                    },
+                },
+            },
         });
     }
     async grantPermissionToRole(roleId, permissionId) {

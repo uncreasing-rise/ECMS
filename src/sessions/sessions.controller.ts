@@ -12,7 +12,7 @@ import {
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('sessions')
@@ -30,9 +30,9 @@ export class SessionsController {
   @Get('user/:userId')
   findUserSessions(
     @Param('userId') userId: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListQueryDto,
   ) {
-    return this.sessionsService.findUserSessions(userId, query.page, query.limit);
+    return this.sessionsService.findUserSessions(userId, query.page, query.limit, query.detail);
   }
 
   @Get('user/:userId/active')

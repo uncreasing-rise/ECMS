@@ -19,7 +19,7 @@ export declare class SessionsService {
         risk: string | null;
         expiresAt: Date;
     }>;
-    findUserSessions(userId: string, page?: number, limit?: number): Promise<{
+    findUserSessions(userId: string, page?: number, limit?: number, detail?: boolean): Promise<{
         id: string;
         status: string;
         createdAt: Date;

@@ -30,11 +30,39 @@ export class LeadsService {
     });
   }
 
-  async findAllLeads(page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
+  async findAllLeads(page = 1, limit = 10, detail = false) {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const skip = (page - 1) * safeLimit;
+
+    if (detail) {
+      return this.prisma.lead.findMany({
+        skip,
+        take: safeLimit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          branch: true,
+          owner: true,
+          statusHistory: {
+            orderBy: { changedAt: 'desc' },
+            take: 20,
+          },
+          consultations: {
+            orderBy: { date: 'desc' },
+            take: 20,
+          },
+          _count: {
+            select: {
+              consultations: true,
+              statusHistory: true,
+            },
+          },
+        },
+      });
+    }
+
     return this.prisma.lead.findMany({
       skip,
-      take: limit,
+      take: safeLimit,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -94,12 +122,36 @@ export class LeadsService {
     });
   }
 
-  async findLeadsByOwner(ownerId: string, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
+  async findLeadsByOwner(ownerId: string, page = 1, limit = 10, detail = false) {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const skip = (page - 1) * safeLimit;
+
+    if (detail) {
+      return this.prisma.lead.findMany({
+        where: { ownerId },
+        skip,
+        take: safeLimit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          branch: true,
+          owner: true,
+          statusHistory: {
+            orderBy: { changedAt: 'desc' },
+            take: 20,
+          },
+          consultations: {
+            orderBy: { date: 'desc' },
+            take: 20,
+          },
+          _count: { select: { consultations: true, statusHistory: true } },
+        },
+      });
+    }
+
     return this.prisma.lead.findMany({
       where: { ownerId },
       skip,
-      take: limit,
+      take: safeLimit,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -117,12 +169,36 @@ export class LeadsService {
     });
   }
 
-  async findLeadsByStatus(status: string, page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
+  async findLeadsByStatus(status: string, page = 1, limit = 10, detail = false) {
+    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const skip = (page - 1) * safeLimit;
+
+    if (detail) {
+      return this.prisma.lead.findMany({
+        where: { status },
+        skip,
+        take: safeLimit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          branch: true,
+          owner: true,
+          statusHistory: {
+            orderBy: { changedAt: 'desc' },
+            take: 20,
+          },
+          consultations: {
+            orderBy: { date: 'desc' },
+            take: 20,
+          },
+          _count: { select: { consultations: true, statusHistory: true } },
+        },
+      });
+    }
+
     return this.prisma.lead.findMany({
       where: { status },
       skip,
-      take: limit,
+      take: safeLimit,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

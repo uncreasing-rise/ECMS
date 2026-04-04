@@ -30,12 +30,47 @@ export class FinanceService {
 		});
 	}
 
-	async listPayrollRuns(branchId?: string, page = 1, limit = 20) {
-		const skip = (page - 1) * limit;
+	async listPayrollRuns(branchId?: string, page = 1, limit = 20, detail = false) {
+		const safeLimit = Math.min(Math.max(limit, 1), 50);
+		const skip = (page - 1) * safeLimit;
+
+		if (detail) {
+			return this.prisma.payrollRun.findMany({
+				where: branchId ? { branchId } : undefined,
+				skip,
+				take: safeLimit,
+				orderBy: { runAt: 'desc' },
+				include: {
+					branch: true,
+					runByUser: true,
+					sessionPays: {
+						select: {
+							id: true,
+							teacherId: true,
+							amount: true,
+							bonus: true,
+							sessionCount: true,
+						},
+						take: 100,
+					},
+					payrollAdjustments: {
+						select: {
+							id: true,
+							teacherId: true,
+							type: true,
+							amount: true,
+							status: true,
+						},
+						take: 100,
+					},
+				},
+			});
+		}
+
 		return this.prisma.payrollRun.findMany({
 			where: branchId ? { branchId } : undefined,
 			skip,
-			take: limit,
+			take: safeLimit,
 			orderBy: { runAt: 'desc' },
 			select: {
 				id: true,
@@ -89,12 +124,28 @@ export class FinanceService {
 		});
 	}
 
-	async listSessionPays(teacherId?: string, page = 1, limit = 20) {
-		const skip = (page - 1) * limit;
+	async listSessionPays(teacherId?: string, page = 1, limit = 20, detail = false) {
+		const safeLimit = Math.min(Math.max(limit, 1), 50);
+		const skip = (page - 1) * safeLimit;
+
+		if (detail) {
+			return this.prisma.sessionPay.findMany({
+				where: teacherId ? { teacherId } : undefined,
+				skip,
+				take: safeLimit,
+				orderBy: { sessionDate: 'desc' },
+				include: {
+					teacher: true,
+					branch: true,
+					payrollRun: true,
+				},
+			});
+		}
+
 		return this.prisma.sessionPay.findMany({
 			where: teacherId ? { teacherId } : undefined,
 			skip,
-			take: limit,
+			take: safeLimit,
 			orderBy: { sessionDate: 'desc' },
 			select: {
 				id: true,
@@ -150,12 +201,28 @@ export class FinanceService {
 		});
 	}
 
-	async listPayrollAdjustments(teacherId?: string, page = 1, limit = 20) {
-		const skip = (page - 1) * limit;
+	async listPayrollAdjustments(teacherId?: string, page = 1, limit = 20, detail = false) {
+		const safeLimit = Math.min(Math.max(limit, 1), 50);
+		const skip = (page - 1) * safeLimit;
+
+		if (detail) {
+			return this.prisma.payrollAdjustment.findMany({
+				where: teacherId ? { teacherId } : undefined,
+				skip,
+				take: safeLimit,
+				orderBy: { id: 'desc' },
+				include: {
+					teacher: true,
+					branch: true,
+					payrollRun: true,
+				},
+			});
+		}
+
 		return this.prisma.payrollAdjustment.findMany({
 			where: teacherId ? { teacherId } : undefined,
 			skip,
-			take: limit,
+			take: safeLimit,
 			orderBy: { id: 'desc' },
 			select: {
 				id: true,

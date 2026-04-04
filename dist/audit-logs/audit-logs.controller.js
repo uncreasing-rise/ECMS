@@ -17,7 +17,7 @@ const common_1 = require("@nestjs/common");
 const audit_logs_service_1 = require("./audit-logs.service");
 const create_audit_log_dto_1 = require("./dto/create-audit-log.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let AuditLogsController = class AuditLogsController {
     auditLogsService;
     constructor(auditLogsService) {
@@ -27,13 +27,13 @@ let AuditLogsController = class AuditLogsController {
         return this.auditLogsService.createLog(createAuditLogDto);
     }
     findLogs(query) {
-        return this.auditLogsService.findLogs(query.page, query.limit);
+        return this.auditLogsService.findLogs(query.page, query.limit, query.detail);
     }
     findLogsByModule(module, query) {
-        return this.auditLogsService.findLogsByModule(module, query.page, query.limit);
+        return this.auditLogsService.findLogsByModule(module, query.page, query.limit, query.detail);
     }
     findLogsByActor(actorId, query) {
-        return this.auditLogsService.findLogsByActor(actorId, query.page, query.limit);
+        return this.auditLogsService.findLogsByActor(actorId, query.page, query.limit, query.detail);
     }
     findLogsByTarget(targetId, targetType) {
         return this.auditLogsService.findLogsByTarget(targetId, targetType);
@@ -54,7 +54,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], AuditLogsController.prototype, "findLogs", null);
 __decorate([
@@ -62,7 +62,7 @@ __decorate([
     __param(0, (0, common_1.Param)('module')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], AuditLogsController.prototype, "findLogsByModule", null);
 __decorate([
@@ -70,7 +70,7 @@ __decorate([
     __param(0, (0, common_1.Param)('actorId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], AuditLogsController.prototype, "findLogsByActor", null);
 __decorate([

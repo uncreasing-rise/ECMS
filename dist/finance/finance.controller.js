@@ -16,26 +16,26 @@ exports.FinanceController = void 0;
 const common_1 = require("@nestjs/common");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const finance_service_1 = require("./finance.service");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let FinanceController = class FinanceController {
     financeService;
     constructor(financeService) {
         this.financeService = financeService;
     }
     listPayrollRuns(branchId, query) {
-        return this.financeService.listPayrollRuns(branchId, query?.page, query?.limit);
+        return this.financeService.listPayrollRuns(branchId, query?.page, query?.limit, query?.detail);
     }
     createPayrollRun(data) {
         return this.financeService.createPayrollRun(data);
     }
     listSessionPays(teacherId, query) {
-        return this.financeService.listSessionPays(teacherId, query?.page, query?.limit);
+        return this.financeService.listSessionPays(teacherId, query?.page, query?.limit, query?.detail);
     }
     createSessionPay(data) {
         return this.financeService.createSessionPay(data);
     }
     listPayrollAdjustments(teacherId, query) {
-        return this.financeService.listPayrollAdjustments(teacherId, query?.page, query?.limit);
+        return this.financeService.listPayrollAdjustments(teacherId, query?.page, query?.limit, query?.detail);
     }
     createPayrollAdjustment(data) {
         return this.financeService.createPayrollAdjustment(data);
@@ -47,7 +47,7 @@ __decorate([
     __param(0, (0, common_1.Query)('branchId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "listPayrollRuns", null);
 __decorate([
@@ -62,7 +62,7 @@ __decorate([
     __param(0, (0, common_1.Query)('teacherId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "listSessionPays", null);
 __decorate([
@@ -77,7 +77,7 @@ __decorate([
     __param(0, (0, common_1.Query)('teacherId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], FinanceController.prototype, "listPayrollAdjustments", null);
 __decorate([

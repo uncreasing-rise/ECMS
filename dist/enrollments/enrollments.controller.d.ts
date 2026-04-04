@@ -1,11 +1,11 @@
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class EnrollmentsController {
     private readonly enrollmentsService;
     constructor(enrollmentsService: EnrollmentsService);
-    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(query: ListQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
         class: {
             id: string;
             status: string;

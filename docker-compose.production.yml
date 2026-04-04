@@ -69,6 +69,7 @@ services:
       context: .
       target: runner
     restart: unless-stopped
+    command: sh -c "npm run db:setup && node dist/main.js"
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +81,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-ecms}:${POSTGRES_PASSWORD:-change-me}@pgbouncer:6432/${POSTGRES_DB:-ecms}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-ecms}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-ecms}
       JWT_SECRET: ${JWT_SECRET:-change-me}
       REDIS_ENABLED: "true"
       REDIS_HOST: redis

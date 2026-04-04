@@ -17,7 +17,7 @@ const common_1 = require("@nestjs/common");
 const sessions_service_1 = require("./sessions.service");
 const create_session_dto_1 = require("./dto/create-session.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let SessionsController = class SessionsController {
     sessionsService;
     constructor(sessionsService) {
@@ -30,7 +30,7 @@ let SessionsController = class SessionsController {
         });
     }
     findUserSessions(userId, query) {
-        return this.sessionsService.findUserSessions(userId, query.page, query.limit);
+        return this.sessionsService.findUserSessions(userId, query.page, query.limit, query.detail);
     }
     findActiveSessions(userId) {
         return this.sessionsService.findActiveSessions(userId);
@@ -61,7 +61,7 @@ __decorate([
     __param(0, (0, common_1.Param)('userId')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [String, list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], SessionsController.prototype, "findUserSessions", null);
 __decorate([

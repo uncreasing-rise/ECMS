@@ -4,7 +4,7 @@ import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 export declare class EnrollmentsService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(page?: number, limit?: number, detail?: boolean): import("@prisma/client").Prisma.PrismaPromise<{
         class: {
             id: string;
             status: string;

@@ -1,11 +1,39 @@
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
-    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(query: ListQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+        branch: {
+            id: string;
+            status: string;
+            name: string;
+            location: string | null;
+            parentBranchId: string | null;
+            timezone: string | null;
+            currency: string | null;
+        } | null;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        id: string;
+        branchId: string | null;
+        accountType: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userRoles: {
+            role: {
+                id: string;
+                name: string;
+                description: string | null;
+            };
+            assignedAt: Date;
+        }[];
+    }[]> | import("@prisma/client").Prisma.PrismaPromise<{
         branch: {
             id: string;
             status: string;
@@ -20,12 +48,9 @@ export declare class UsersController {
         accountType: string;
         status: string;
         createdAt: Date;
-        userRoles: {
-            role: {
-                id: string;
-                name: string;
-            };
-        }[];
+        _count: {
+            userRoles: number;
+        };
     }[]>;
     findOne(id: string): import("@prisma/client").Prisma.Prisma__UserClient<{
         branch: {

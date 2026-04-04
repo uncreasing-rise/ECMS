@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
@@ -20,6 +20,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { LeadsModule } from './leads/leads.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
+import { ReadCacheInterceptor } from './common/interceptors/read-cache.interceptor';
 
 @Module({
   imports: [
@@ -92,6 +93,10 @@ import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ReadCacheInterceptor,
+    },
     {
       provide: APP_GUARD,
       useClass: AppThrottlerGuard,

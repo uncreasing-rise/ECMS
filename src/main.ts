@@ -3,10 +3,12 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
+import compression from 'compression';
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  app.use(compression({ threshold: 1024 }));
   app.setGlobalPrefix('api/v1', { exclude: ['metrics'] });
   app.useGlobalPipes(
     new ValidationPipe({

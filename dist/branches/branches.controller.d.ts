@@ -1,11 +1,11 @@
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class BranchesController {
     private readonly branchesService;
     constructor(branchesService: BranchesService);
-    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(query: ListQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
         id: string;
         status: string;
         _count: {

@@ -13,7 +13,7 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('leads')
@@ -27,24 +27,24 @@ export class LeadsController {
   }
 
   @Get()
-  findAllLeads(@Query() query: PaginationQueryDto) {
-    return this.leadsService.findAllLeads(query.page, query.limit);
+  findAllLeads(@Query() query: ListQueryDto) {
+    return this.leadsService.findAllLeads(query.page, query.limit, query.detail);
   }
 
   @Get('owner/:ownerId')
   findLeadsByOwner(
     @Param('ownerId') ownerId: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListQueryDto,
   ) {
-    return this.leadsService.findLeadsByOwner(ownerId, query.page, query.limit);
+    return this.leadsService.findLeadsByOwner(ownerId, query.page, query.limit, query.detail);
   }
 
   @Get('status/:status')
   findLeadsByStatus(
     @Param('status') status: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListQueryDto,
   ) {
-    return this.leadsService.findLeadsByStatus(status, query.page, query.limit);
+    return this.leadsService.findLeadsByStatus(status, query.page, query.limit, query.detail);
   }
 
   @Get(':id')

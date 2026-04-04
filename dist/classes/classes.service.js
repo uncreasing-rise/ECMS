@@ -17,11 +17,54 @@ let ClassesService = class ClassesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    findAll(page = 1, limit = 20) {
-        const skip = (page - 1) * limit;
+    findAll(page = 1, limit = 20, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 50);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.class.findMany({
+                skip,
+                take: safeLimit,
+                orderBy: { startDate: 'desc' },
+                include: {
+                    course: true,
+                    branch: true,
+                    teacher: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            email: true,
+                        },
+                    },
+                    enrollments: {
+                        select: {
+                            id: true,
+                            status: true,
+                            enrolledAt: true,
+                        },
+                        orderBy: { enrolledAt: 'desc' },
+                        take: 50,
+                    },
+                    assignments: {
+                        select: {
+                            id: true,
+                            title: true,
+                            dueDate: true,
+                        },
+                        take: 50,
+                    },
+                    _count: {
+                        select: {
+                            enrollments: true,
+                            assignments: true,
+                        },
+                    },
+                },
+            });
+        }
         return this.prisma.class.findMany({
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { startDate: 'desc' },
             select: {
                 id: true,

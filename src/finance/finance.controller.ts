@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards, Param, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FinanceService } from './finance.service';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('finance')
@@ -12,9 +12,14 @@ export class FinanceController {
 	@Get('payroll-runs')
 	listPayrollRuns(
 		@Query('branchId') branchId?: string,
-		@Query() query?: PaginationQueryDto,
+		@Query() query?: ListQueryDto,
 	) {
-		return this.financeService.listPayrollRuns(branchId, query?.page, query?.limit);
+		return this.financeService.listPayrollRuns(
+			branchId,
+			query?.page,
+			query?.limit,
+			query?.detail,
+		);
 	}
 
 	@Post('payroll-runs')
@@ -26,9 +31,14 @@ export class FinanceController {
 	@Get('session-pays')
 	listSessionPays(
 		@Query('teacherId') teacherId?: string,
-		@Query() query?: PaginationQueryDto,
+		@Query() query?: ListQueryDto,
 	) {
-		return this.financeService.listSessionPays(teacherId, query?.page, query?.limit);
+		return this.financeService.listSessionPays(
+			teacherId,
+			query?.page,
+			query?.limit,
+			query?.detail,
+		);
 	}
 
 	@Post('session-pays')
@@ -40,9 +50,14 @@ export class FinanceController {
 	@Get('adjustments')
 	listPayrollAdjustments(
 		@Query('teacherId') teacherId?: string,
-		@Query() query?: PaginationQueryDto,
+		@Query() query?: ListQueryDto,
 	) {
-		return this.financeService.listPayrollAdjustments(teacherId, query?.page, query?.limit);
+		return this.financeService.listPayrollAdjustments(
+			teacherId,
+			query?.page,
+			query?.limit,
+			query?.detail,
+		);
 	}
 
 	@Post('adjustments')

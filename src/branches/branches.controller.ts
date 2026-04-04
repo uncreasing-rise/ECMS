@@ -13,7 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('branches')
@@ -21,8 +21,8 @@ export class BranchesController {
 	constructor(private readonly branchesService: BranchesService) {}
 
 	@Get()
-	findAll(@Query() query: PaginationQueryDto) {
-		return this.branchesService.findAll(query.page, query.limit);
+	findAll(@Query() query: ListQueryDto) {
+		return this.branchesService.findAll(query.page, query.limit, query.detail);
 	}
 
 	@Get(':id')

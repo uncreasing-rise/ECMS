@@ -1,11 +1,30 @@
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class CoursesController {
     private readonly coursesService;
     constructor(coursesService: CoursesService);
-    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(query: ListQueryDto): import("@prisma/client").Prisma.PrismaPromise<({
+        _count: {
+            classes: number;
+        };
+        classes: {
+            id: string;
+            status: string;
+            name: string;
+            capacity: number;
+            startDate: Date;
+            endDate: Date;
+        }[];
+    } & {
+        id: string;
+        status: string;
+        name: string;
+        description: string | null;
+        level: string;
+        durationWeeks: number;
+    })[]> | import("@prisma/client").Prisma.PrismaPromise<{
         id: string;
         status: string;
         _count: {

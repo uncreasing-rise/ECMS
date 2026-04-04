@@ -36,27 +36,24 @@ npm install
 copy .env.example .env
 ```
 
-3. Update `DATABASE_URL` and `JWT_SECRET` in `.env`.
+3. Update `DATABASE_URL`, `DIRECT_URL`, and `JWT_SECRET` in `.env`.
 
-4. Generate Prisma client.
+- `DATABASE_URL` should point to the Supabase pooler for app/runtime traffic.
+- `DIRECT_URL` should point to the direct database connection for migrations and schema operations.
+
+4. For an empty database, create tables and seed core data.
+
+```bash
+npm run db:setup
+```
+
+5. Generate Prisma client.
 
 ```bash
 npm run prisma:generate
 ```
 
-5. Run migrations.
-
-```bash
-npm run prisma:migrate -- --name init
-```
-
-6. Seed initial data (roles, permissions, admin user).
-
-```bash
-npm run db:seed
-```
-
-7. Start dev server.
+6. Start dev server.
 
 ```bash
 npm run start:dev

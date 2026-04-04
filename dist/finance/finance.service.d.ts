@@ -23,7 +23,7 @@ export declare class FinanceService {
         runAt: Date;
         runBy: string | null;
     }>;
-    listPayrollRuns(branchId?: string, page?: number, limit?: number): Promise<{
+    listPayrollRuns(branchId?: string, page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;
@@ -58,13 +58,13 @@ export declare class FinanceService {
         branchId: string;
         teacherId: string;
         classId: string | null;
+        payrollRunId: string | null;
         sessionDate: Date;
         sessionCount: number;
         amount: import("@prisma/client-runtime-utils").Decimal;
         bonus: import("@prisma/client-runtime-utils").Decimal;
-        payrollRunId: string | null;
     }>;
-    listSessionPays(teacherId?: string, page?: number, limit?: number): Promise<{
+    listSessionPays(teacherId?: string, page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;
@@ -101,12 +101,12 @@ export declare class FinanceService {
         teacherId: string;
         periodYear: number;
         periodMonth: number;
-        amount: import("@prisma/client-runtime-utils").Decimal;
         payrollRunId: string | null;
+        amount: import("@prisma/client-runtime-utils").Decimal;
         type: string;
         note: string | null;
     }>;
-    listPayrollAdjustments(teacherId?: string, page?: number, limit?: number): Promise<{
+    listPayrollAdjustments(teacherId?: string, page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;

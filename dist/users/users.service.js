@@ -17,11 +17,47 @@ let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    findAll(page = 1, limit = 20) {
-        const skip = (page - 1) * limit;
+    findAll(page = 1, limit = 20, detail = false) {
+        const safeLimit = Math.min(Math.max(limit, 1), 50);
+        const skip = (page - 1) * safeLimit;
+        if (detail) {
+            return this.prisma.user.findMany({
+                where: { deletedAt: null },
+                skip,
+                take: safeLimit,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                    branchId: true,
+                    accountType: true,
+                    status: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    branch: true,
+                    userRoles: {
+                        where: { revokedAt: null },
+                        select: {
+                            assignedAt: true,
+                            role: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    description: true,
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+        }
         return this.prisma.user.findMany({
+            where: { deletedAt: null },
             skip,
-            take: limit,
+            take: safeLimit,
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -40,15 +76,9 @@ let UsersService = class UsersService {
                         status: true,
                     },
                 },
-                userRoles: {
-                    where: { revokedAt: null },
+                _count: {
                     select: {
-                        role: {
-                            select: {
-                                id: true,
-                                name: true,
-                            },
-                        },
+                        userRoles: true,
                     },
                 },
             },

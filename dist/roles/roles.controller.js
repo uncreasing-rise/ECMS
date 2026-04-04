@@ -19,6 +19,7 @@ const create_role_dto_1 = require("./dto/create-role.dto");
 const update_role_dto_1 = require("./dto/update-role.dto");
 const create_permission_dto_1 = require("./dto/create-permission.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
 let RolesController = class RolesController {
     rolesService;
@@ -29,7 +30,7 @@ let RolesController = class RolesController {
         return this.rolesService.createRole(createRoleDto);
     }
     findAllRoles(query) {
-        return this.rolesService.findAllRoles(query.page, query.limit);
+        return this.rolesService.findAllRoles(query.page, query.limit, query.detail);
     }
     findRoleById(id) {
         return this.rolesService.findRoleById(id);
@@ -77,7 +78,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "findAllRoles", null);
 __decorate([

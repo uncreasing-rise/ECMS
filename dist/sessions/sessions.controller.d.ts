@@ -1,6 +1,6 @@
 import { SessionsService } from './sessions.service';
 import { CreateSessionDto } from './dto/create-session.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class SessionsController {
     private readonly sessionsService;
     constructor(sessionsService: SessionsService);
@@ -14,7 +14,7 @@ export declare class SessionsController {
         risk: string | null;
         expiresAt: Date;
     }>;
-    findUserSessions(userId: string, query: PaginationQueryDto): Promise<{
+    findUserSessions(userId: string, query: ListQueryDto): Promise<{
         id: string;
         status: string;
         createdAt: Date;

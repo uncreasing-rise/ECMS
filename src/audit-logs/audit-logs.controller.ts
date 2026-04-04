@@ -10,7 +10,7 @@ import {
 import { AuditLogsService } from './audit-logs.service';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('audit-logs')
@@ -23,24 +23,24 @@ export class AuditLogsController {
   }
 
   @Get()
-  findLogs(@Query() query: PaginationQueryDto) {
-    return this.auditLogsService.findLogs(query.page, query.limit);
+  findLogs(@Query() query: ListQueryDto) {
+    return this.auditLogsService.findLogs(query.page, query.limit, query.detail);
   }
 
   @Get('module/:module')
   findLogsByModule(
     @Param('module') module: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListQueryDto,
   ) {
-    return this.auditLogsService.findLogsByModule(module, query.page, query.limit);
+    return this.auditLogsService.findLogsByModule(module, query.page, query.limit, query.detail);
   }
 
   @Get('actor/:actorId')
   findLogsByActor(
     @Param('actorId') actorId: string,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListQueryDto,
   ) {
-    return this.auditLogsService.findLogsByActor(actorId, query.page, query.limit);
+    return this.auditLogsService.findLogsByActor(actorId, query.page, query.limit, query.detail);
   }
 
   @Get('target/:targetId/:targetType')

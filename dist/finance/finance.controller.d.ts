@@ -1,9 +1,9 @@
 import { FinanceService } from './finance.service';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class FinanceController {
     private readonly financeService;
     constructor(financeService: FinanceService);
-    listPayrollRuns(branchId?: string, query?: PaginationQueryDto): Promise<{
+    listPayrollRuns(branchId?: string, query?: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
@@ -37,7 +37,7 @@ export declare class FinanceController {
         runAt: Date;
         runBy: string | null;
     }>;
-    listSessionPays(teacherId?: string, query?: PaginationQueryDto): Promise<{
+    listSessionPays(teacherId?: string, query?: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
@@ -62,13 +62,13 @@ export declare class FinanceController {
         branchId: string;
         teacherId: string;
         classId: string | null;
+        payrollRunId: string | null;
         sessionDate: Date;
         sessionCount: number;
         amount: import("@prisma/client-runtime-utils").Decimal;
         bonus: import("@prisma/client-runtime-utils").Decimal;
-        payrollRunId: string | null;
     }>;
-    listPayrollAdjustments(teacherId?: string, query?: PaginationQueryDto): Promise<{
+    listPayrollAdjustments(teacherId?: string, query?: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
@@ -97,8 +97,8 @@ export declare class FinanceController {
         teacherId: string;
         periodYear: number;
         periodMonth: number;
-        amount: import("@prisma/client-runtime-utils").Decimal;
         payrollRunId: string | null;
+        amount: import("@prisma/client-runtime-utils").Decimal;
         type: string;
         note: string | null;
     }>;

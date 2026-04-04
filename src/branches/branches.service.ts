@@ -7,11 +7,49 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 export class BranchesService {
 	constructor(private readonly prisma: PrismaService) {}
 
-	findAll(page = 1, limit = 20) {
-		const skip = (page - 1) * limit;
+	findAll(page = 1, limit = 20, detail = false) {
+		const safeLimit = Math.min(Math.max(limit, 1), 50);
+		const skip = (page - 1) * safeLimit;
+
+		if (detail) {
+			return this.prisma.branch.findMany({
+				skip,
+				take: safeLimit,
+				orderBy: { name: 'asc' },
+				include: {
+					parentBranch: true,
+					childBranches: {
+						select: {
+							id: true,
+							name: true,
+							status: true,
+						},
+						take: 20,
+					},
+					users: {
+						select: {
+							id: true,
+							firstName: true,
+							lastName: true,
+							email: true,
+						},
+						take: 20,
+					},
+					_count: {
+						select: {
+							childBranches: true,
+							users: true,
+							classes: true,
+							leads: true,
+						},
+					},
+				},
+			});
+		}
+
 		return this.prisma.branch.findMany({
 			skip,
-			take: limit,
+			take: safeLimit,
 			orderBy: { name: 'asc' },
 			select: {
 				id: true,

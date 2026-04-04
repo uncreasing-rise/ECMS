@@ -4,7 +4,35 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export declare class UsersService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(page?: number, limit?: number, detail?: boolean): import("@prisma/client").Prisma.PrismaPromise<{
+        branch: {
+            id: string;
+            status: string;
+            name: string;
+            location: string | null;
+            parentBranchId: string | null;
+            timezone: string | null;
+            currency: string | null;
+        } | null;
+        email: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        id: string;
+        branchId: string | null;
+        accountType: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        userRoles: {
+            role: {
+                id: string;
+                name: string;
+                description: string | null;
+            };
+            assignedAt: Date;
+        }[];
+    }[]> | import("@prisma/client").Prisma.PrismaPromise<{
         branch: {
             id: string;
             status: string;
@@ -19,12 +47,9 @@ export declare class UsersService {
         accountType: string;
         status: string;
         createdAt: Date;
-        userRoles: {
-            role: {
-                id: string;
-                name: string;
-            };
-        }[];
+        _count: {
+            userRoles: number;
+        };
     }[]>;
     findOne(id: string): import("@prisma/client").Prisma.Prisma__UserClient<{
         branch: {

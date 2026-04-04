@@ -1,11 +1,11 @@
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class ClassesController {
     private readonly classesService;
     constructor(classesService: ClassesService);
-    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(query: ListQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
         branch: {
             id: string;
             status: string;

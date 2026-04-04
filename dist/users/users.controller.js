@@ -18,14 +18,14 @@ const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./dto/create-user.dto");
 const update_user_dto_1 = require("./dto/update-user.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let UsersController = class UsersController {
     usersService;
     constructor(usersService) {
         this.usersService = usersService;
     }
     findAll(query) {
-        return this.usersService.findAll(query.page, query.limit);
+        return this.usersService.findAll(query.page, query.limit, query.detail);
     }
     findOne(id) {
         return this.usersService.findOne(id);
@@ -45,7 +45,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
 __decorate([

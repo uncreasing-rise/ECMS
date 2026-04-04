@@ -6,10 +6,10 @@ export declare class RolesService {
         name: string;
         status: string;
     }): Promise<{
-        rolePermissions: {
-            roleId: string;
-            permissionId: string;
-        }[];
+        _count: {
+            userRoles: number;
+            rolePermissions: number;
+        };
     } & {
         id: string;
         status: string;
@@ -17,9 +17,16 @@ export declare class RolesService {
         description: string | null;
     }>;
     findRoleById(id: string): Promise<({
+        _count: {
+            userRoles: number;
+        };
         rolePermissions: {
-            roleId: string;
-            permissionId: string;
+            permission: {
+                id: string;
+                name: string;
+                category: string;
+                action: string;
+            };
         }[];
     } & {
         id: string;
@@ -27,11 +34,28 @@ export declare class RolesService {
         name: string;
         description: string | null;
     }) | null>;
-    findAllRoles(page?: number, limit?: number): Promise<({
+    findAllRoles(page?: number, limit?: number, detail?: boolean): Promise<({
+        _count: {
+            userRoles: number;
+        };
         rolePermissions: {
-            roleId: string;
-            permissionId: string;
+            permission: {
+                id: string;
+                name: string;
+                category: string;
+                action: string;
+            };
         }[];
+    } & {
+        id: string;
+        status: string;
+        name: string;
+        description: string | null;
+    })[] | ({
+        _count: {
+            userRoles: number;
+            rolePermissions: number;
+        };
     } & {
         id: string;
         status: string;
@@ -42,10 +66,10 @@ export declare class RolesService {
         name?: string;
         status?: string;
     }): Promise<{
-        rolePermissions: {
-            roleId: string;
-            permissionId: string;
-        }[];
+        _count: {
+            userRoles: number;
+            rolePermissions: number;
+        };
     } & {
         id: string;
         status: string;

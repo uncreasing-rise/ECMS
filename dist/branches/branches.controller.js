@@ -18,14 +18,14 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const branches_service_1 = require("./branches.service");
 const create_branch_dto_1 = require("./dto/create-branch.dto");
 const update_branch_dto_1 = require("./dto/update-branch.dto");
-const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
+const list_query_dto_1 = require("../common/dto/list-query.dto");
 let BranchesController = class BranchesController {
     branchesService;
     constructor(branchesService) {
         this.branchesService = branchesService;
     }
     findAll(query) {
-        return this.branchesService.findAll(query.page, query.limit);
+        return this.branchesService.findAll(query.page, query.limit, query.detail);
     }
     findOne(id) {
         return this.branchesService.findOne(id);
@@ -45,7 +45,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
+    __metadata("design:paramtypes", [list_query_dto_1.ListQueryDto]),
     __metadata("design:returntype", void 0)
 ], BranchesController.prototype, "findAll", null);
 __decorate([

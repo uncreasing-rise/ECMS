@@ -2,7 +2,7 @@ import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ListQueryDto } from '../common/dto/list-query.dto';
 export declare class LeadsController {
     private readonly leadsService;
     constructor(leadsService: LeadsService);
@@ -43,7 +43,7 @@ export declare class LeadsController {
         score: number;
         ownerId: string | null;
     }>;
-    findAllLeads(query: PaginationQueryDto): Promise<{
+    findAllLeads(query: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
@@ -68,7 +68,7 @@ export declare class LeadsController {
             id: string;
         } | null;
     }[]>;
-    findLeadsByOwner(ownerId: string, query: PaginationQueryDto): Promise<{
+    findLeadsByOwner(ownerId: string, query: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
@@ -93,7 +93,7 @@ export declare class LeadsController {
             id: string;
         } | null;
     }[]>;
-    findLeadsByStatus(status: string, query: PaginationQueryDto): Promise<{
+    findLeadsByStatus(status: string, query: ListQueryDto): Promise<{
         branch: {
             id: string;
             status: string;

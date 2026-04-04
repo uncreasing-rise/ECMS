@@ -48,7 +48,7 @@ export declare class LeadsService {
         score: number;
         ownerId: string | null;
     }>;
-    findAllLeads(page?: number, limit?: number): Promise<{
+    findAllLeads(page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;
@@ -133,7 +133,7 @@ export declare class LeadsService {
         score: number;
         ownerId: string | null;
     }) | null>;
-    findLeadsByOwner(ownerId: string, page?: number, limit?: number): Promise<{
+    findLeadsByOwner(ownerId: string, page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;
@@ -158,7 +158,7 @@ export declare class LeadsService {
             id: string;
         } | null;
     }[]>;
-    findLeadsByStatus(status: string, page?: number, limit?: number): Promise<{
+    findLeadsByStatus(status: string, page?: number, limit?: number, detail?: boolean): Promise<{
         branch: {
             id: string;
             status: string;

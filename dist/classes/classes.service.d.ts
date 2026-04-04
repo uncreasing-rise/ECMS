@@ -4,7 +4,7 @@ import { UpdateClassDto } from './dto/update-class.dto';
 export declare class ClassesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
+    findAll(page?: number, limit?: number, detail?: boolean): import("@prisma/client").Prisma.PrismaPromise<{
         branch: {
             id: string;
             status: string;

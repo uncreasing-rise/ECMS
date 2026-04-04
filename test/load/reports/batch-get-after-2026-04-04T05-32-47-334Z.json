@@ -1,0 +1,53 @@
+{
+  "label": "after",
+  "baseUrl": "http://localhost:3000/api/v1",
+  "durationSeconds": 10,
+  "connections": 100,
+  "timestamp": "2026-04-04T05:32:47.334Z",
+  "results": [
+    {
+      "endpoint": "/users?page=1&limit=20",
+      "avgRps": 50,
+      "p95Ms": 2248,
+      "errorRate": 0,
+      "status2xx": 500,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errors": 0,
+      "timeouts": 0
+    },
+    {
+      "endpoint": "/roles?page=1&limit=20",
+      "avgRps": 93.2,
+      "p95Ms": 1711,
+      "errorRate": 0,
+      "status2xx": 932,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errors": 0,
+      "timeouts": 0
+    },
+    {
+      "endpoint": "/courses?page=1&limit=20",
+      "avgRps": 99.6,
+      "p95Ms": 1638,
+      "errorRate": 0,
+      "status2xx": 996,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errors": 0,
+      "timeouts": 0
+    },
+    {
+      "endpoint": "/classes?page=1&limit=20",
+      "avgRps": 23,
+      "p95Ms": 4483,
+      "errorRate": 0,
+      "status2xx": 230,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errors": 0,
+      "timeouts": 0
+    }
+  ]
+}
