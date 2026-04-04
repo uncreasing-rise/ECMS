@@ -13,7 +13,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { RabbitMqService } from '../infrastructure/queue/rabbitmq.service';
 
 type PendingRegistration = {
 	firstName: string;
@@ -29,7 +28,6 @@ export class AuthService {
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly jwtService: JwtService,
-		private readonly rabbitMqService: RabbitMqService,
 		@Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
 	) {}
 
@@ -66,12 +64,8 @@ export class AuthService {
 			10 * 60 * 1000,
 		);
 
-		await this.rabbitMqService.publish('email.verification', {
-			to: email,
-			subject: 'Verify your ECMS account',
-			code,
-			template: 'verify-email',
-		});
+		// Single-process mode: keep verification in cache, email sender can be integrated later.
+		// Logic for sending email will be implemented here.
 
 		return {
 			message:
@@ -94,12 +88,8 @@ export class AuthService {
 		pending.code = code;
 		await this.cacheManager.set(key, pending, 10 * 60 * 1000);
 
-		await this.rabbitMqService.publish('email.verification', {
-			to: pending.email,
-			subject: 'Your new ECMS verification code',
-			code,
-			template: 'verify-email',
-		});
+		// Single-process mode: keep verification in cache, email sender can be integrated later.
+		// Logic for sending email will be implemented here.
 
 		return { message: 'Verification code resent.' };
 	}

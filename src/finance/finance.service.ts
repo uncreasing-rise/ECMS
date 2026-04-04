@@ -30,9 +30,12 @@ export class FinanceService {
 		});
 	}
 
-	async listPayrollRuns(branchId?: string) {
+	async listPayrollRuns(branchId?: string, page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.payrollRun.findMany({
 			where: branchId ? { branchId } : undefined,
+			skip,
+			take: limit,
 			orderBy: { runAt: 'desc' },
 			include: { branch: true, runByUser: true },
 		});
@@ -61,9 +64,12 @@ export class FinanceService {
 		});
 	}
 
-	async listSessionPays(teacherId?: string) {
+	async listSessionPays(teacherId?: string, page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.sessionPay.findMany({
 			where: teacherId ? { teacherId } : undefined,
+			skip,
+			take: limit,
 			orderBy: { sessionDate: 'desc' },
 			include: { teacher: true, branch: true },
 		});
@@ -96,9 +102,12 @@ export class FinanceService {
 		});
 	}
 
-	async listPayrollAdjustments(teacherId?: string) {
+	async listPayrollAdjustments(teacherId?: string, page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.payrollAdjustment.findMany({
 			where: teacherId ? { teacherId } : undefined,
+			skip,
+			take: limit,
 			orderBy: { id: 'desc' },
 			include: { teacher: true, branch: true },
 		});

@@ -10,8 +10,11 @@ export class FinanceController {
 
 	// Payroll Run endpoints
 	@Get('payroll-runs')
-	listPayrollRuns(@Query('branchId') branchId?: string) {
-		return this.financeService.listPayrollRuns(branchId);
+	listPayrollRuns(
+		@Query('branchId') branchId?: string,
+		@Query() query?: PaginationQueryDto,
+	) {
+		return this.financeService.listPayrollRuns(branchId, query?.page, query?.limit);
 	}
 
 	@Post('payroll-runs')
@@ -21,8 +24,11 @@ export class FinanceController {
 
 	// Session Pay endpoints
 	@Get('session-pays')
-	listSessionPays(@Query('teacherId') teacherId?: string) {
-		return this.financeService.listSessionPays(teacherId);
+	listSessionPays(
+		@Query('teacherId') teacherId?: string,
+		@Query() query?: PaginationQueryDto,
+	) {
+		return this.financeService.listSessionPays(teacherId, query?.page, query?.limit);
 	}
 
 	@Post('session-pays')
@@ -32,8 +38,11 @@ export class FinanceController {
 
 	// Payroll Adjustment endpoints
 	@Get('adjustments')
-	listPayrollAdjustments(@Query('teacherId') teacherId?: string) {
-		return this.financeService.listPayrollAdjustments(teacherId);
+	listPayrollAdjustments(
+		@Query('teacherId') teacherId?: string,
+		@Query() query?: PaginationQueryDto,
+	) {
+		return this.financeService.listPayrollAdjustments(teacherId, query?.page, query?.limit);
 	}
 
 	@Post('adjustments')

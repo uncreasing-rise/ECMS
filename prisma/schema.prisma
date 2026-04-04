@@ -58,6 +58,9 @@ model User {
   payrollsRunBy      PayrollRun[]
 
   @@map("users")
+  @@index([createdAt])
+  @@index([branchId])
+  @@index([status])
 }
 
 model Role {
@@ -115,6 +118,9 @@ model Session {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+  @@index([userId, createdAt])
+  @@index([userId, status, expiresAt])
+  @@index([expiresAt])
 }
 
 model AuditLog {
@@ -130,6 +136,10 @@ model AuditLog {
   actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+  @@index([module, timestamp])
+  @@index([actorId, timestamp])
+  @@index([targetId, targetType, timestamp])
+  @@index([timestamp])
 }
 
 // ─────────────────────────────────────────
@@ -157,6 +167,7 @@ model Branch {
   payrollAdjustments PayrollAdjustment[]
 
   @@map("branches")
+  @@index([name])
 }
 
 model Course {
@@ -173,6 +184,7 @@ model Course {
   isPrerequisiteOf    CoursePrerequisite[] @relation("IsPrerequisiteOf")
 
   @@map("courses")
+  @@index([name])
 }
 
 model CoursePrerequisite {
@@ -213,6 +225,9 @@ model Class {
   classExams        ClassExam[]
 
   @@map("classes")
+  @@index([branchId, startDate])
+  @@index([teacherId, startDate])
+  @@index([courseId, startDate])
 }
 
 model Enrollment {
@@ -228,6 +243,8 @@ model Enrollment {
 
   @@unique([classId, studentId])
   @@map("enrollments")
+  @@index([studentId, enrolledAt])
+  @@index([classId, enrolledAt])
 }
 
 model Assignment {
@@ -385,6 +402,10 @@ model Lead {
   consultations Consultation[]
 
   @@map("leads")
+  @@index([ownerId, createdAt])
+  @@index([status, createdAt])
+  @@index([branchId, createdAt])
+  @@index([phone])
 }
 
 model LeadStatusHistory {
@@ -400,6 +421,7 @@ model LeadStatusHistory {
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@map("lead_status_histories")
+  @@index([leadId, changedAt])
 }
 
 model Consultation {
@@ -417,6 +439,8 @@ model Consultation {
   staff User? @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   @@map("consultations")
+  @@index([leadId, date])
+  @@index([staffId, date])
 }
 
 // ─────────────────────────────────────────
@@ -652,6 +676,9 @@ model SessionPay {
   payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
 
   @@map("session_pays")
+  @@index([teacherId, sessionDate])
+  @@index([branchId, sessionDate])
+  @@index([payrollRunId])
 }
 
 model PayrollAdjustment {
@@ -672,6 +699,9 @@ model PayrollAdjustment {
   payrollRun PayrollRun? @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
 
   @@map("payroll_adjustments")
+  @@index([teacherId, periodYear, periodMonth])
+  @@index([branchId, periodYear, periodMonth])
+  @@index([payrollRunId])
 }
 
 model PayrollRun {
@@ -693,6 +723,9 @@ model PayrollRun {
   payrollAdjustments PayrollAdjustment[]
 
   @@map("payroll_runs")
+  @@index([branchId, runAt])
+  @@index([periodYear, periodMonth])
+  @@index([runBy])
 }
 
 // ─────────────────────────────────────────
@@ -728,4 +761,6 @@ model NotificationRecipient {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_recipients")
+  @@index([userId, isRead])
+  @@index([notificationId])
 }

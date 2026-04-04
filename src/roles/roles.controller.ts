@@ -54,8 +54,8 @@ export class RolesController {
   }
 
   @Get('permissions')
-  findAllPermissions() {
-    return this.rolesService.findAllPermissions();
+  findAllPermissions(@Query() query: PaginationQueryDto) {
+    return this.rolesService.findAllPermissions(query.page, query.limit);
   }
 
   @Get('permissions/:id')
@@ -94,7 +94,10 @@ export class RolesController {
   }
 
   @Get(':roleId/permissions')
-  getRolePermissions(@Param('roleId') roleId: string) {
-    return this.rolesService.getRolePermissions(roleId);
+  getRolePermissions(
+    @Param('roleId') roleId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.rolesService.getRolePermissions(roleId, query.page, query.limit);
   }
 }

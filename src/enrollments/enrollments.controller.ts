@@ -6,12 +6,14 @@ import {
 	Param,
 	Patch,
 	Post,
+	Query,
 	UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('enrollments')
@@ -19,8 +21,8 @@ export class EnrollmentsController {
 	constructor(private readonly enrollmentsService: EnrollmentsService) {}
 
 	@Get()
-	findAll() {
-		return this.enrollmentsService.findAll();
+	findAll(@Query() query: PaginationQueryDto) {
+		return this.enrollmentsService.findAll(query.page, query.limit);
 	}
 
 	@Get(':id')

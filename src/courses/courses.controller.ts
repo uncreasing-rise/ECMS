@@ -6,12 +6,14 @@ import {
 	Param,
 	Patch,
 	Post,
+	Query,
 	UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('courses')
@@ -19,8 +21,8 @@ export class CoursesController {
 	constructor(private readonly coursesService: CoursesService) {}
 
 	@Get()
-	findAll() {
-		return this.coursesService.findAll();
+	findAll(@Query() query: PaginationQueryDto) {
+		return this.coursesService.findAll(query.page, query.limit);
 	}
 
 	@Get(':id')

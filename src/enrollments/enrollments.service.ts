@@ -7,8 +7,11 @@ import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 export class EnrollmentsService {
 	constructor(private readonly prisma: PrismaService) {}
 
-	findAll() {
+	findAll(page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.enrollment.findMany({
+			skip,
+			take: limit,
 			orderBy: { enrolledAt: 'desc' },
 			include: { student: true, class: true },
 		});

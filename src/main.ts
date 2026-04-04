@@ -6,6 +6,7 @@ import { RequestLoggingInterceptor } from './common/interceptors/request-logging
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.setGlobalPrefix('api/v1', { exclude: ['metrics'] });
   app.useGlobalPipes(
     new ValidationPipe({

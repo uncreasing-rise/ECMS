@@ -7,8 +7,11 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 export class BranchesService {
 	constructor(private readonly prisma: PrismaService) {}
 
-	findAll() {
+	findAll(page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.branch.findMany({
+			skip,
+			take: limit,
 			orderBy: { name: 'asc' },
 			include: { parentBranch: true, childBranches: true },
 		});

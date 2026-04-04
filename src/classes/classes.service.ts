@@ -7,8 +7,11 @@ import { UpdateClassDto } from './dto/update-class.dto';
 export class ClassesService {
 	constructor(private readonly prisma: PrismaService) {}
 
-	findAll() {
+	findAll(page = 1, limit = 20) {
+		const skip = (page - 1) * limit;
 		return this.prisma.class.findMany({
+			skip,
+			take: limit,
 			orderBy: { startDate: 'desc' },
 			include: { course: true, branch: true, teacher: true, enrollments: true },
 		});

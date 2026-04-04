@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,16 +19,46 @@ import { SessionsModule } from './sessions/sessions.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { LeadsModule } from './leads/leads.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
+import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 100,
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const redisEnabled = configService.get<string>('REDIS_ENABLED', 'false') === 'true';
+        const redisHost = configService.get<string>('REDIS_HOST', '127.0.0.1');
+        const redisPort = Number(configService.get<string>('REDIS_PORT', '6379'));
+        const redisPassword = configService.get<string>('REDIS_PASSWORD');
+        const ttlMs = Number(configService.get<string>('THROTTLE_TTL_MS', '60000'));
+        const limit = Number(configService.get<string>('THROTTLE_LIMIT', '300'));
+
+        const throttlerOptions = {
+          throttlers: [
+            {
+              name: 'default',
+              ttl: ttlMs,
+              limit,
+            },
+          ],
+        };
+
+        if (!redisEnabled) {
+          return throttlerOptions;
+        }
+
+        return {
+          ...throttlerOptions,
+          storage: new ThrottlerStorageRedisService({
+            host: redisHost,
+            port: redisPort,
+            password: redisPassword,
+            db: Number(configService.get<string>('REDIS_DB', '0')),
+          }),
+        };
       },
-    ]),
+    }),
     PrometheusModule.register({
       path: '/metrics',
       defaultMetrics: {
@@ -62,7 +93,7 @@ import { InfrastructureModule } from './infrastructure/infrastructure.module';
     AppService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: AppThrottlerGuard,
     },
   ],
 })
