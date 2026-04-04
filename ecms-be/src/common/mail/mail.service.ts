@@ -52,12 +52,22 @@ export class MailService {
     }
 
     try {
-      await this.resend.emails.send({
+      const { data, error } = await this.resend.emails.send({
         from: this.from,
         to: params.to,
         subject: params.subject,
         html: params.html,
       });
+
+      if (error) {
+        this.logger.error(
+          `Gửi email thất bại tới ${params.to}: ${error.message}`,
+          JSON.stringify(error),
+        );
+        return;
+      }
+
+      this.logger.log(`Email queued tới ${params.to} (id=${data?.id ?? 'unknown'})`);
     } catch (err) {
       this.logger.error(`Gửi email thất bại tới ${params.to}`, err);
     }

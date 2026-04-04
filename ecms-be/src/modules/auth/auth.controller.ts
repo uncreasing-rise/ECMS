@@ -35,8 +35,9 @@ export class AuthController {
   verifyEmail(
     @Query('uid') userId: string,
     @Query('token') token: string,
+    @Req() req: any,
   ) {
-    return this.authService.verifyEmail(userId, token);
+    return this.authService.verifyEmail(userId, token, req.ip);
   }
 
   @Public()
@@ -44,8 +45,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Gửi lại email xác nhận' })
-  resendVerification(@Body('email') email: string) {
-    return this.authService.resendVerification(email);
+  resendVerification(@Body('email') email: string, @Req() req: any) {
+    return this.authService.resendVerification(email, req.ip);
   }
 
   @Public()
@@ -79,8 +80,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Quên mật khẩu' })
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: any) {
+    return this.authService.forgotPassword(dto.email, req.ip);
   }
 
   @Public()

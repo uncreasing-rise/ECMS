@@ -1,7 +1,9 @@
 import {
-  Injectable, BadRequestException,
-  UnauthorizedException, ConflictException,
-  NotFoundException, ForbiddenException,
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+  ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +18,8 @@ import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 const MAX_FAILED_ATTEMPTS = 5;
+const RESEND_COOLDOWN_SECONDS = 60;
+const PENDING_VERIFICATION_TTL_HOURS = 24;
 
 @Injectable()
 export class AuthService {
@@ -29,23 +33,74 @@ export class AuthService {
 
   // ─── Register ────────────────────────────────
   async register(dto: RegisterDto, ip: string) {
+    const email = dto.email.toLowerCase();
     const exists = await this.prisma.users.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
-    if (exists) throw new ConflictException('Email đã được sử dụng');
+
+    if (exists) {
+      if (exists.status === 'active') {
+        throw new ConflictException('Email đã được sử dụng');
+      }
+
+      if (exists.status === 'on_hold') {
+        throw new ForbiddenException('Tài khoản đã bị khoá, vui lòng liên hệ admin');
+      }
+
+      if (exists.status === 'inactive') {
+        const hasCooldown = await this.redis.hasResendCooldown(exists.id);
+        if (hasCooldown) {
+          throw new BadRequestException('Email đã đăng ký nhưng chưa xác thực. Vui lòng chờ 60 giây trước khi gửi lại.');
+        }
+
+        const expired = this.isPendingVerificationExpired(exists.created_at);
+
+        if (expired) {
+          const password_hash = await bcrypt.hash(dto.password, 12);
+          const refreshedUser = await this.prisma.users.update({
+            where: { id: exists.id },
+            data: {
+              full_name: dto.full_name,
+              password_hash,
+              phone: dto.phone,
+              date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
+              gender: dto.gender,
+              status: 'inactive',
+            },
+          });
+
+          await this.sendVerificationEmail(refreshedUser.id, refreshedUser.email, refreshedUser.full_name);
+          await this.redis.setResendCooldown(refreshedUser.id, RESEND_COOLDOWN_SECONDS);
+          await this.writeAuditLog({ user_id: refreshedUser.id, action: 'REGISTER_RETRY', ip });
+
+          return {
+            message: 'Tài khoản chờ xác thực đã hết hạn. Chúng tôi đã gửi email xác nhận mới.',
+          };
+        }
+
+        await this.sendVerificationEmail(exists.id, exists.email, exists.full_name);
+        await this.redis.setResendCooldown(exists.id, RESEND_COOLDOWN_SECONDS);
+
+        return {
+          message: 'Email đã được đăng ký nhưng chưa xác thực. Chúng tôi đã gửi lại email xác nhận.',
+        };
+      }
+
+      throw new ConflictException('Email đã được sử dụng');
+    }
 
     const password_hash = await bcrypt.hash(dto.password, 12);
 
     const user = await this.prisma.users.create({
       data: {
         id: randomUUID(),
-        email: dto.email,
+        email,
         full_name: dto.full_name,
         password_hash,
         phone: dto.phone,
         date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
         gender: dto.gender,
-        status: 'inactive', // chờ verify email
+        status: 'inactive',
       },
     });
 
@@ -61,6 +116,7 @@ export class AuthService {
 
     // Gửi verify email
     await this.sendVerificationEmail(user.id, user.email, user.full_name);
+    await this.redis.setResendCooldown(user.id, RESEND_COOLDOWN_SECONDS);
     await this.writeAuditLog({ user_id: user.id, action: 'REGISTER', ip });
 
     return {
@@ -69,7 +125,7 @@ export class AuthService {
   }
 
   // ─── Verify Email ─────────────────────────────
-  async verifyEmail(userId: string, token: string) {
+  async verifyEmail(userId: string, token: string, ip: string = '') {
     const stored = await this.redis.getVerifyToken(userId);
     if (!stored) throw new BadRequestException('Token không tồn tại hoặc đã hết hạn');
 
@@ -85,12 +141,14 @@ export class AuthService {
     });
 
     await this.redis.delVerifyToken(userId);
+    await this.writeAuditLog({ user_id: userId, action: 'VERIFY_EMAIL', ip });
     return { message: 'Xác nhận email thành công. Bạn có thể đăng nhập.' };
   }
 
   // ─── Resend Verification ──────────────────────
-  async resendVerification(email: string) {
-    const user = await this.prisma.users.findUnique({ where: { email } });
+  async resendVerification(email: string, ip: string = '') {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.users.findUnique({ where: { email: normalizedEmail } });
     if (!user) return { message: 'Nếu email tồn tại, bạn sẽ nhận được mail xác nhận.' };
     if (user.status === 'active') throw new BadRequestException('Tài khoản đã được xác nhận');
 
@@ -98,15 +156,18 @@ export class AuthService {
     if (hasCooldown) throw new BadRequestException('Vui lòng chờ 60 giây trước khi gửi lại');
 
     await this.sendVerificationEmail(user.id, user.email, user.full_name);
-    await this.redis.setResendCooldown(user.id, 60);
+    await this.redis.setResendCooldown(user.id, RESEND_COOLDOWN_SECONDS);
+    await this.writeAuditLog({ user_id: user.id, action: 'RESEND_VERIFY', ip });
 
     return { message: 'Đã gửi lại email xác nhận.' };
   }
 
-  // ─── Login ───────────────────────────────────
+  // ─── Login ────────────────────────────────────
   async login(dto: LoginDto, ip: string) {
+    const email = dto.email.toLowerCase();
+    
     // Kiểm tra failed attempts
-    const failedCount = await this.redis.getFailedLogin(dto.email);
+    const failedCount = await this.redis.getFailedLogin(email);
     if (failedCount >= MAX_FAILED_ATTEMPTS) {
       throw new ForbiddenException(
         'Tài khoản tạm thời bị khoá do đăng nhập sai quá nhiều lần. Thử lại sau 15 phút.',
@@ -114,13 +175,13 @@ export class AuthService {
     }
 
     const user = await this.prisma.users.findUnique({
-      where: { email: dto.email },
+      where: { email },
       include: { user_roles: { include: { roles: true } } },
     });
 
     // Sai email hoặc password → tăng counter
     if (!user || !(await bcrypt.compare(dto.password, user.password_hash))) {
-      if (user) await this.redis.incrementFailedLogin(dto.email);
+      if (user) await this.redis.incrementFailedLogin(email);
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
@@ -133,7 +194,7 @@ export class AuthService {
     }
 
     // Đăng nhập thành công → reset counter
-    await this.redis.resetFailedLogin(dto.email);
+    await this.redis.resetFailedLogin(email);
     await this.writeAuditLog({ user_id: user.id, action: 'LOGIN', ip });
 
     const tokens = await this.generateTokens(user.id, user.email);
@@ -185,8 +246,9 @@ export class AuthService {
   }
 
   // ─── Forgot Password ──────────────────────────
-  async forgotPassword(email: string) {
-    const user = await this.prisma.users.findUnique({ where: { email } });
+  async forgotPassword(email: string, ip: string = '') {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.users.findUnique({ where: { email: normalizedEmail } });
 
     // Luôn trả về cùng message để tránh email enumeration
     if (!user || user.status !== 'active') {
@@ -207,7 +269,7 @@ export class AuthService {
       userId: user.id,
     });
 
-    await this.writeAuditLog({ user_id: user.id, action: 'FORGOT_PASSWORD', ip: '' });
+    await this.writeAuditLog({ user_id: user.id, action: 'FORGOT_PASSWORD', ip });
 
     return { message: 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.' };
   }
@@ -242,7 +304,7 @@ export class AuthService {
       where: { id: userId },
       include: {
         user_roles: {
-          include: { roles: true, branches: true },
+          include: { roles: true },
         },
       },
     });
@@ -251,10 +313,7 @@ export class AuthService {
 
     return {
       ...this.sanitizeUser(user),
-      roles: user.user_roles.map((ur) => ({
-        role: ur.roles.name,
-        branch: ur.branches?.name ?? null,
-      })),
+      roles: user.user_roles.map((ur) => ur.roles.name),
     };
   }
 
@@ -267,6 +326,15 @@ export class AuthService {
     const token = crypto.randomBytes(32).toString('hex');
     await this.redis.setVerifyToken(userId, token, 86400); // 24 giờ
     await this.mail.sendVerifyEmail({ to: email, full_name, token, userId });
+  }
+
+  private isPendingVerificationExpired(createdAt: Date | null): boolean {
+    if (!createdAt) {
+      return true;
+    }
+
+    const ageMs = Date.now() - new Date(createdAt).getTime();
+    return ageMs > PENDING_VERIFICATION_TTL_HOURS * 60 * 60 * 1000;
   }
 
   private async generateTokens(userId: string, email: string) {

@@ -4,6 +4,9 @@ node_modules
 
 /src/generated/prisma
 
+# Firebase service account should stay local only
+firebase-service-account.json
+
 # Ignore accidental nested git metadata backup and nested package created by wrong cwd commands
 ecms-be/.git-nested-backup-*
 ecms-be/ecms-be/

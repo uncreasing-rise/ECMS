@@ -5,7 +5,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { MailModule } from './common/mail/mail.module';
+import { FirebaseModule } from './common/firebase/firebase.module';
+import { WebSocketModule } from './common/websocket/websocket.module';
+import { DeviceTokensModule } from './common/device-tokens/device-tokens.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,7 +21,11 @@ import { AuthModule } from './modules/auth/auth.module';
     PrismaModule,
     RedisModule,
     MailModule,
+    FirebaseModule,
+    WebSocketModule,
+    DeviceTokensModule,
     AuthModule,
+    NotificationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -1,7 +1,7 @@
 import {
   IsEmail, IsString, MinLength,
   MaxLength, IsOptional, IsDateString,
-  IsIn,
+  IsIn, Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -15,10 +15,13 @@ export class RegisterDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: 'StrongPass@123', minLength: 8 })
+  @ApiProperty({ example: 'StrongPass@123', minLength: 8, description: 'Must contain uppercase, lowercase, digit, and special character' })
   @IsString()
   @MinLength(8)
   @MaxLength(50)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, {
+    message: 'Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt',
+  })
   password!: string;
 
   @ApiPropertyOptional({ example: '0901234567' })
