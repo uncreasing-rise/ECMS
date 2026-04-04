@@ -4,7 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
 
-async function bootstrap() {
+export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.setGlobalPrefix('api/v1', { exclude: ['metrics'] });
@@ -16,7 +16,9 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new RequestLoggingInterceptor());
+  if (process.env.LOAD_TEST_MODE !== 'true') {
+    app.useGlobalInterceptors(new RequestLoggingInterceptor());
+  }
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('ECMS API Gateway')
@@ -29,4 +31,7 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+
+if (require.main === module) {
+  bootstrap();
+}

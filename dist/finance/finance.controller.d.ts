@@ -1,33 +1,14 @@
 import { FinanceService } from './finance.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 export declare class FinanceController {
     private readonly financeService;
     constructor(financeService: FinanceService);
-    listPayrollRuns(branchId?: string): Promise<({
+    listPayrollRuns(branchId?: string, query?: PaginationQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         };
-        runByUser: {
-            email: string;
-            firstName: string;
-            lastName: string;
-            phone: string | null;
-            id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
-        } | null;
-    } & {
         id: string;
         branchId: string;
         status: string;
@@ -37,8 +18,13 @@ export declare class FinanceController {
         grossAmount: import("@prisma/client-runtime-utils").Decimal;
         netAmount: import("@prisma/client-runtime-utils").Decimal;
         runAt: Date;
-        runBy: string | null;
-    })[]>;
+        runByUser: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            id: string;
+        } | null;
+    }[]>;
     createPayrollRun(data: any): Promise<{
         id: string;
         branchId: string;
@@ -51,42 +37,26 @@ export declare class FinanceController {
         runAt: Date;
         runBy: string | null;
     }>;
-    listSessionPays(teacherId?: string): Promise<({
+    listSessionPays(teacherId?: string, query?: PaginationQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         };
+        id: string;
+        branchId: string;
+        teacherId: string;
         teacher: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         };
-    } & {
-        id: string;
-        branchId: string;
-        teacherId: string;
-        classId: string | null;
         sessionDate: Date;
         sessionCount: number;
         amount: import("@prisma/client-runtime-utils").Decimal;
         bonus: import("@prisma/client-runtime-utils").Decimal;
-        payrollRunId: string | null;
-    })[]>;
+    }[]>;
     createSessionPay(data: any): Promise<{
         id: string;
         branchId: string;
@@ -98,43 +68,28 @@ export declare class FinanceController {
         bonus: import("@prisma/client-runtime-utils").Decimal;
         payrollRunId: string | null;
     }>;
-    listPayrollAdjustments(teacherId?: string): Promise<({
+    listPayrollAdjustments(teacherId?: string, query?: PaginationQueryDto): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         };
-        teacher: {
-            email: string;
-            firstName: string;
-            lastName: string;
-            phone: string | null;
-            id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
-        };
-    } & {
         id: string;
         branchId: string;
         status: string;
         teacherId: string;
+        teacher: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            id: string;
+        };
         periodYear: number;
         periodMonth: number;
         amount: import("@prisma/client-runtime-utils").Decimal;
-        payrollRunId: string | null;
         type: string;
         note: string | null;
-    })[]>;
+    }[]>;
     createPayrollAdjustment(data: any): Promise<{
         id: string;
         branchId: string;

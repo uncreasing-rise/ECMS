@@ -4,57 +4,37 @@ import { UpdateClassDto } from './dto/update-class.dto';
 export declare class ClassesService {
     private readonly prisma;
     constructor(prisma: PrismaService);
-    findAll(): import("@prisma/client").Prisma.PrismaPromise<({
+    findAll(page?: number, limit?: number): import("@prisma/client").Prisma.PrismaPromise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         };
         course: {
             id: string;
-            status: string;
             name: string;
-            description: string | null;
             level: string;
-            durationWeeks: number;
         };
-        enrollments: {
-            id: string;
-            status: string;
-            classId: string;
-            studentId: string;
-            enrolledAt: Date;
-        }[];
-        teacher: {
-            email: string;
-            firstName: string;
-            lastName: string;
-            phone: string | null;
-            id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
-        } | null;
-    } & {
         id: string;
         branchId: string;
         status: string;
+        _count: {
+            enrollments: number;
+            assignments: number;
+        };
         name: string;
         courseId: string;
         teacherId: string | null;
         capacity: number;
         startDate: Date;
         endDate: Date;
-    })[]>;
+        teacher: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            id: string;
+        } | null;
+    }[]>;
     findOne(id: string): import("@prisma/client").Prisma.Prisma__ClassClient<({
         branch: {
             id: string;
@@ -76,29 +56,27 @@ export declare class ClassesService {
         enrollments: {
             id: string;
             status: string;
-            classId: string;
-            studentId: string;
             enrolledAt: Date;
+            student: {
+                email: string;
+                firstName: string;
+                lastName: string;
+                id: string;
+            };
         }[];
+        _count: {
+            enrollments: number;
+            assignments: number;
+        };
         teacher: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
             status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         } | null;
         assignments: {
             id: string;
-            description: string | null;
-            classId: string;
             title: string;
             dueDate: Date;
             maxScore: number;

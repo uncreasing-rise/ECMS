@@ -18,13 +18,14 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const enrollments_service_1 = require("./enrollments.service");
 const create_enrollment_dto_1 = require("./dto/create-enrollment.dto");
 const update_enrollment_dto_1 = require("./dto/update-enrollment.dto");
+const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
 let EnrollmentsController = class EnrollmentsController {
     enrollmentsService;
     constructor(enrollmentsService) {
         this.enrollmentsService = enrollmentsService;
     }
-    findAll() {
-        return this.enrollmentsService.findAll();
+    findAll(query) {
+        return this.enrollmentsService.findAll(query.page, query.limit);
     }
     findOne(id) {
         return this.enrollmentsService.findOne(id);
@@ -42,8 +43,9 @@ let EnrollmentsController = class EnrollmentsController {
 exports.EnrollmentsController = EnrollmentsController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
     __metadata("design:returntype", void 0)
 ], EnrollmentsController.prototype, "findAll", null);
 __decorate([

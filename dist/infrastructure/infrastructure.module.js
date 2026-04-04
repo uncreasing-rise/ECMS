@@ -9,7 +9,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.InfrastructureModule = void 0;
 const common_1 = require("@nestjs/common");
 const redis_cache_module_1 = require("./cache/redis-cache.module");
-const queue_module_1 = require("./queue/queue.module");
 const mongo_module_1 = require("./document/mongo.module");
 const search_module_1 = require("./search/search.module");
 const storage_module_1 = require("./storage/storage.module");
@@ -19,8 +18,8 @@ exports.InfrastructureModule = InfrastructureModule;
 exports.InfrastructureModule = InfrastructureModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        imports: [redis_cache_module_1.RedisCacheModule, queue_module_1.QueueModule, mongo_module_1.MongoModule, search_module_1.SearchModule, storage_module_1.StorageModule],
-        exports: [redis_cache_module_1.RedisCacheModule, queue_module_1.QueueModule, mongo_module_1.MongoModule, search_module_1.SearchModule, storage_module_1.StorageModule],
+        imports: [redis_cache_module_1.RedisCacheModule, mongo_module_1.MongoModule, search_module_1.SearchModule, storage_module_1.StorageModule],
+        exports: [redis_cache_module_1.RedisCacheModule, mongo_module_1.MongoModule, search_module_1.SearchModule, storage_module_1.StorageModule],
     })
 ], InfrastructureModule);
 //# sourceMappingURL=infrastructure.module.js.map

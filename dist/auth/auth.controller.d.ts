@@ -7,6 +7,7 @@ import type { Request } from 'express';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
+    private getTracker;
     register(registerDto: RegisterDto): Promise<{
         message: string;
         expiresInSeconds: number;
@@ -25,7 +26,7 @@ export declare class AuthController {
     resendVerification(resendDto: ResendVerificationDto): Promise<{
         message: string;
     }>;
-    login(loginDto: LoginDto): Promise<{
+    login(loginDto: LoginDto, req: Request): Promise<{
         access_token: string;
         user: {
             sub: string;

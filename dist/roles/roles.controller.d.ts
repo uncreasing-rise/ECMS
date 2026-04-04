@@ -62,7 +62,7 @@ export declare class RolesController {
         category: string;
         action: string;
     }>;
-    findAllPermissions(): Promise<{
+    findAllPermissions(query: PaginationQueryDto): Promise<{
         id: string;
         name: string;
         category: string;
@@ -94,7 +94,7 @@ export declare class RolesController {
         roleId: string;
         permissionId: string;
     } | undefined>;
-    getRolePermissions(roleId: string): Promise<({
+    getRolePermissions(roleId: string, query: PaginationQueryDto): Promise<({
         permission: {
             id: string;
             name: string;

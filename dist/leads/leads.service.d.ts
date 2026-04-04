@@ -48,43 +48,31 @@ export declare class LeadsService {
         score: number;
         ownerId: string | null;
     }>;
-    findAllLeads(page?: number, limit?: number): Promise<({
+    findAllLeads(page?: number, limit?: number): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         } | null;
+        email: string | null;
+        phone: string;
+        id: string;
+        status: string;
+        createdAt: Date;
+        _count: {
+            consultations: number;
+            statusHistory: number;
+        };
+        name: string;
+        source: string | null;
+        score: number;
         owner: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         } | null;
-    } & {
-        email: string | null;
-        phone: string;
-        id: string;
-        branchId: string | null;
-        status: string;
-        createdAt: Date;
-        name: string;
-        source: string | null;
-        score: number;
-        ownerId: string | null;
-    })[]>;
+    }[]>;
     findLeadById(id: string): Promise<({
         branch: {
             id: string;
@@ -98,13 +86,17 @@ export declare class LeadsService {
         consultations: {
             id: string;
             status: string;
-            leadId: string;
             date: Date;
+            leadId: string;
             outcome: string | null;
             followUpNote: string | null;
             followUpDate: Date | null;
             staffId: string | null;
         }[];
+        _count: {
+            consultations: number;
+            statusHistory: number;
+        };
         owner: {
             email: string;
             firstName: string;
@@ -123,10 +115,10 @@ export declare class LeadsService {
         statusHistory: {
             id: string;
             note: string | null;
+            changedAt: Date;
             fromStatus: string;
             toStatus: string;
             changedBy: string | null;
-            changedAt: Date;
             leadId: string;
         }[];
     } & {
@@ -141,80 +133,56 @@ export declare class LeadsService {
         score: number;
         ownerId: string | null;
     }) | null>;
-    findLeadsByOwner(ownerId: string, page?: number, limit?: number): Promise<({
+    findLeadsByOwner(ownerId: string, page?: number, limit?: number): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         } | null;
+        email: string | null;
+        phone: string;
+        id: string;
+        status: string;
+        createdAt: Date;
+        _count: {
+            consultations: number;
+            statusHistory: number;
+        };
+        name: string;
+        source: string | null;
+        score: number;
         owner: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         } | null;
-    } & {
-        email: string | null;
-        phone: string;
-        id: string;
-        branchId: string | null;
-        status: string;
-        createdAt: Date;
-        name: string;
-        source: string | null;
-        score: number;
-        ownerId: string | null;
-    })[]>;
-    findLeadsByStatus(status: string, page?: number, limit?: number): Promise<({
+    }[]>;
+    findLeadsByStatus(status: string, page?: number, limit?: number): Promise<{
         branch: {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         } | null;
+        email: string | null;
+        phone: string;
+        id: string;
+        status: string;
+        createdAt: Date;
+        _count: {
+            consultations: number;
+            statusHistory: number;
+        };
+        name: string;
+        source: string | null;
+        score: number;
         owner: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         } | null;
-    } & {
-        email: string | null;
-        phone: string;
-        id: string;
-        branchId: string | null;
-        status: string;
-        createdAt: Date;
-        name: string;
-        source: string | null;
-        score: number;
-        ownerId: string | null;
-    })[]>;
+    }[]>;
     updateLead(id: string, data: any): Promise<{
         branch: {
             id: string;
@@ -256,10 +224,10 @@ export declare class LeadsService {
         statusHistory: {
             id: string;
             note: string | null;
+            changedAt: Date;
             fromStatus: string;
             toStatus: string;
             changedBy: string | null;
-            changedAt: Date;
             leadId: string;
         }[];
     } & {
@@ -285,8 +253,8 @@ export declare class LeadsService {
     }): Promise<{
         id: string;
         status: string;
-        leadId: string;
         date: Date;
+        leadId: string;
         outcome: string | null;
         followUpNote: string | null;
         followUpDate: Date | null;
@@ -295,8 +263,8 @@ export declare class LeadsService {
     findLeadConsultations(leadId: string): Promise<{
         id: string;
         status: string;
-        leadId: string;
         date: Date;
+        leadId: string;
         outcome: string | null;
         followUpNote: string | null;
         followUpDate: Date | null;
@@ -305,10 +273,10 @@ export declare class LeadsService {
     getLeadStatusHistory(leadId: string): Promise<{
         id: string;
         note: string | null;
+        changedAt: Date;
         fromStatus: string;
         toStatus: string;
         changedBy: string | null;
-        changedAt: Date;
         leadId: string;
     }[]>;
 }

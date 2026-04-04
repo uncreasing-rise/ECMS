@@ -12,12 +12,18 @@ const common_1 = require("@nestjs/common");
 const rxjs_1 = require("rxjs");
 let RequestLoggingInterceptor = RequestLoggingInterceptor_1 = class RequestLoggingInterceptor {
     logger = new common_1.Logger(RequestLoggingInterceptor_1.name);
+    slowRequestMs = Number(process.env.REQUEST_LOG_SLOW_MS ?? '1000');
+    sampleRate = Number(process.env.REQUEST_LOG_SAMPLE_RATE ?? '0.02');
     intercept(context, next) {
         const request = context.switchToHttp().getRequest();
         const response = context.switchToHttp().getResponse();
         const startedAt = Date.now();
         return next.handle().pipe((0, rxjs_1.tap)(() => {
             const elapsedMs = Date.now() - startedAt;
+            const shouldLog = elapsedMs >= this.slowRequestMs || Math.random() < this.sampleRate;
+            if (!shouldLog) {
+                return;
+            }
             this.logger.log(`${request.method} ${request.url} ${response.statusCode} - ${elapsedMs}ms`);
         }));
     }

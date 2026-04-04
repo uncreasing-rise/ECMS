@@ -31,11 +31,39 @@ let FinanceService = class FinanceService {
             },
         });
     }
-    async listPayrollRuns(branchId) {
+    async listPayrollRuns(branchId, page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
         return this.prisma.payrollRun.findMany({
             where: branchId ? { branchId } : undefined,
+            skip,
+            take: limit,
             orderBy: { runAt: 'desc' },
-            include: { branch: true, runByUser: true },
+            select: {
+                id: true,
+                branchId: true,
+                periodYear: true,
+                periodMonth: true,
+                totalTeachers: true,
+                grossAmount: true,
+                netAmount: true,
+                status: true,
+                runAt: true,
+                branch: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                },
+                runByUser: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+            },
         });
     }
     async createSessionPay(data) {
@@ -51,11 +79,37 @@ let FinanceService = class FinanceService {
             },
         });
     }
-    async listSessionPays(teacherId) {
+    async listSessionPays(teacherId, page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
         return this.prisma.sessionPay.findMany({
             where: teacherId ? { teacherId } : undefined,
+            skip,
+            take: limit,
             orderBy: { sessionDate: 'desc' },
-            include: { teacher: true, branch: true },
+            select: {
+                id: true,
+                teacherId: true,
+                branchId: true,
+                sessionDate: true,
+                sessionCount: true,
+                amount: true,
+                bonus: true,
+                teacher: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+                branch: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                },
+            },
         });
     }
     async createPayrollAdjustment(data) {
@@ -73,11 +127,39 @@ let FinanceService = class FinanceService {
             },
         });
     }
-    async listPayrollAdjustments(teacherId) {
+    async listPayrollAdjustments(teacherId, page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
         return this.prisma.payrollAdjustment.findMany({
             where: teacherId ? { teacherId } : undefined,
+            skip,
+            take: limit,
             orderBy: { id: 'desc' },
-            include: { teacher: true, branch: true },
+            select: {
+                id: true,
+                teacherId: true,
+                branchId: true,
+                periodYear: true,
+                periodMonth: true,
+                type: true,
+                amount: true,
+                status: true,
+                note: true,
+                teacher: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+                branch: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                },
+            },
         });
     }
 };

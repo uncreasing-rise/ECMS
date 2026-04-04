@@ -43,8 +43,8 @@ let RolesController = class RolesController {
     createPermission(createPermissionDto) {
         return this.rolesService.createPermission(createPermissionDto);
     }
-    findAllPermissions() {
-        return this.rolesService.findAllPermissions();
+    findAllPermissions(query) {
+        return this.rolesService.findAllPermissions(query.page, query.limit);
     }
     findPermissionById(id) {
         return this.rolesService.findPermissionById(id);
@@ -61,8 +61,8 @@ let RolesController = class RolesController {
     revokePermissionFromRole(roleId, permissionId) {
         return this.rolesService.revokePermissionFromRole(roleId, permissionId);
     }
-    getRolePermissions(roleId) {
-        return this.rolesService.getRolePermissions(roleId);
+    getRolePermissions(roleId, query) {
+        return this.rolesService.getRolePermissions(roleId, query.page, query.limit);
     }
 };
 exports.RolesController = RolesController;
@@ -111,8 +111,9 @@ __decorate([
 ], RolesController.prototype, "createPermission", null);
 __decorate([
     (0, common_1.Get)('permissions'),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "findAllPermissions", null);
 __decorate([
@@ -156,8 +157,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(':roleId/permissions'),
     __param(0, (0, common_1.Param)('roleId')),
+    __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, pagination_query_dto_1.PaginationQueryDto]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "getRolePermissions", null);
 exports.RolesController = RolesController = __decorate([

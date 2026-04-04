@@ -12,6 +12,7 @@ const core_1 = require("@nestjs/core");
 const config_1 = require("@nestjs/config");
 const throttler_1 = require("@nestjs/throttler");
 const nestjs_prometheus_1 = require("@willsoto/nestjs-prometheus");
+const throttler_storage_redis_1 = require("@nest-lab/throttler-storage-redis");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const prisma_module_1 = require("./prisma/prisma.module");
@@ -27,6 +28,7 @@ const sessions_module_1 = require("./sessions/sessions.module");
 const audit_logs_module_1 = require("./audit-logs/audit-logs.module");
 const leads_module_1 = require("./leads/leads.module");
 const infrastructure_module_1 = require("./infrastructure/infrastructure.module");
+const app_throttler_guard_1 = require("./common/guards/app-throttler.guard");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -34,12 +36,39 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
-            throttler_1.ThrottlerModule.forRoot([
-                {
-                    ttl: 60000,
-                    limit: 100,
+            throttler_1.ThrottlerModule.forRootAsync({
+                inject: [config_1.ConfigService],
+                useFactory: (configService) => {
+                    const isLoadTestMode = configService.get('LOAD_TEST_MODE', 'false') === 'true';
+                    const redisEnabled = configService.get('REDIS_ENABLED', 'false') === 'true';
+                    const redisHost = configService.get('REDIS_HOST', '127.0.0.1');
+                    const redisPort = Number(configService.get('REDIS_PORT', '6379'));
+                    const redisPassword = configService.get('REDIS_PASSWORD');
+                    const ttlMs = Number(configService.get('THROTTLE_TTL_MS', '60000'));
+                    const limit = Number(configService.get('THROTTLE_LIMIT', isLoadTestMode ? '50000' : '300'));
+                    const throttlerOptions = {
+                        throttlers: [
+                            {
+                                name: 'default',
+                                ttl: ttlMs,
+                                limit,
+                            },
+                        ],
+                    };
+                    if (!redisEnabled) {
+                        return throttlerOptions;
+                    }
+                    return {
+                        ...throttlerOptions,
+                        storage: new throttler_storage_redis_1.ThrottlerStorageRedisService({
+                            host: redisHost,
+                            port: redisPort,
+                            password: redisPassword,
+                            db: Number(configService.get('REDIS_DB', '0')),
+                        }),
+                    };
                 },
-            ]),
+            }),
             nestjs_prometheus_1.PrometheusModule.register({
                 path: '/metrics',
                 defaultMetrics: {
@@ -65,7 +94,7 @@ exports.AppModule = AppModule = __decorate([
             app_service_1.AppService,
             {
                 provide: core_1.APP_GUARD,
-                useClass: throttler_1.ThrottlerGuard,
+                useClass: app_throttler_guard_1.AppThrottlerGuard,
             },
         ],
     })

@@ -1,51 +1,36 @@
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 export declare class EnrollmentsController {
     private readonly enrollmentsService;
     constructor(enrollmentsService: EnrollmentsService);
-    findAll(): import("@prisma/client").Prisma.PrismaPromise<({
+    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
         class: {
             id: string;
-            branchId: string;
             status: string;
             name: string;
-            courseId: string;
-            teacherId: string | null;
-            capacity: number;
             startDate: Date;
             endDate: Date;
         };
-        student: {
-            email: string;
-            firstName: string;
-            lastName: string;
-            phone: string | null;
-            id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
-            accountType: string;
-            status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
-        };
-    } & {
         id: string;
         status: string;
         classId: string;
         studentId: string;
         enrolledAt: Date;
-    })[]>;
+        student: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            id: string;
+            status: string;
+        };
+    }[]>;
     findOne(id: string): import("@prisma/client").Prisma.Prisma__EnrollmentClient<({
         class: {
             id: string;
-            branchId: string;
             status: string;
             name: string;
-            courseId: string;
-            teacherId: string | null;
             capacity: number;
             startDate: Date;
             endDate: Date;
@@ -54,16 +39,9 @@ export declare class EnrollmentsController {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
             accountType: string;
             status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         };
     } & {
         id: string;

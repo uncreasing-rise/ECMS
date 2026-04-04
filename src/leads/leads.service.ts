@@ -36,14 +36,61 @@ export class LeadsService {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: { branch: true, owner: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        source: true,
+        status: true,
+        score: true,
+        createdAt: true,
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            consultations: true,
+            statusHistory: true,
+          },
+        },
+      },
     });
   }
 
   async findLeadById(id: string) {
     return this.prisma.lead.findUnique({
       where: { id },
-      include: { branch: true, owner: true, statusHistory: true, consultations: true },
+      include: {
+        branch: true,
+        owner: true,
+        statusHistory: {
+          orderBy: { changedAt: 'desc' },
+          take: 100,
+        },
+        consultations: {
+          orderBy: { date: 'desc' },
+          take: 100,
+        },
+        _count: {
+          select: {
+            statusHistory: true,
+            consultations: true,
+          },
+        },
+      },
     });
   }
 
@@ -54,7 +101,19 @@ export class LeadsService {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: { branch: true, owner: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        source: true,
+        status: true,
+        score: true,
+        createdAt: true,
+        branch: { select: { id: true, name: true, status: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        _count: { select: { consultations: true, statusHistory: true } },
+      },
     });
   }
 
@@ -65,7 +124,19 @@ export class LeadsService {
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: { branch: true, owner: true },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        source: true,
+        status: true,
+        score: true,
+        createdAt: true,
+        branch: { select: { id: true, name: true, status: true } },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        _count: { select: { consultations: true, statusHistory: true } },
+      },
     });
   }
 

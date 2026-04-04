@@ -18,13 +18,14 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const classes_service_1 = require("./classes.service");
 const create_class_dto_1 = require("./dto/create-class.dto");
 const update_class_dto_1 = require("./dto/update-class.dto");
+const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
 let ClassesController = class ClassesController {
     classesService;
     constructor(classesService) {
         this.classesService = classesService;
     }
-    findAll() {
-        return this.classesService.findAll();
+    findAll(query) {
+        return this.classesService.findAll(query.page, query.limit);
     }
     findOne(id) {
         return this.classesService.findOne(id);
@@ -42,8 +43,9 @@ let ClassesController = class ClassesController {
 exports.ClassesController = ClassesController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
     __metadata("design:returntype", void 0)
 ], ClassesController.prototype, "findAll", null);
 __decorate([

@@ -17,16 +17,73 @@ let BranchesService = class BranchesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    findAll() {
+    findAll(page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
         return this.prisma.branch.findMany({
+            skip,
+            take: limit,
             orderBy: { name: 'asc' },
-            include: { parentBranch: true, childBranches: true },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                location: true,
+                timezone: true,
+                currency: true,
+                parentBranchId: true,
+                parentBranch: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        childBranches: true,
+                        users: true,
+                        classes: true,
+                        leads: true,
+                    },
+                },
+            },
         });
     }
     findOne(id) {
         return this.prisma.branch.findUnique({
             where: { id },
-            include: { parentBranch: true, childBranches: true, users: true },
+            include: {
+                parentBranch: true,
+                childBranches: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                    orderBy: { name: 'asc' },
+                    take: 50,
+                },
+                users: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        status: true,
+                        accountType: true,
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 100,
+                },
+                _count: {
+                    select: {
+                        childBranches: true,
+                        users: true,
+                        classes: true,
+                        leads: true,
+                    },
+                },
+            },
         });
     }
     create(createBranchDto) {

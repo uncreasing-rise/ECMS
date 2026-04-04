@@ -51,20 +51,87 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const cache_manager_1 = require("@nestjs/cache-manager");
 const prisma_service_1 = require("../prisma/prisma.service");
-const rabbitmq_service_1 = require("../infrastructure/queue/rabbitmq.service");
 let AuthService = class AuthService {
     prisma;
     jwtService;
-    rabbitMqService;
     cacheManager;
-    constructor(prisma, jwtService, rabbitMqService, cacheManager) {
+    loginProfileLoaders = new Map();
+    constructor(prisma, jwtService, cacheManager) {
         this.prisma = prisma;
         this.jwtService = jwtService;
-        this.rabbitMqService = rabbitMqService;
         this.cacheManager = cacheManager;
     }
     getVerificationKey(email) {
         return `auth:verify:${email.toLowerCase()}`;
+    }
+    getLoginProfileKey(email) {
+        return `auth:login:profile:${email.toLowerCase()}`;
+    }
+    getLoginFastFailKey(email, tracker) {
+        return `auth:login:fast-fail:${email.toLowerCase()}:${tracker}`;
+    }
+    getLoginProfileTtlMs() {
+        return Number(process.env.AUTH_LOGIN_PROFILE_CACHE_TTL_MS ?? '15000');
+    }
+    getLoginFastFailTtlMs() {
+        return Number(process.env.AUTH_LOGIN_FAST_FAIL_TTL_MS ?? '3000');
+    }
+    getPasswordHashRounds() {
+        return Number(process.env.AUTH_PASSWORD_HASH_ROUNDS ?? '10');
+    }
+    async loadLoginProfile(email) {
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                email: true,
+                accountType: true,
+                status: true,
+                passwordHash: true,
+                emailVerifiedAt: true,
+                userRoles: {
+                    select: {
+                        role: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!user) {
+            return null;
+        }
+        return {
+            id: user.id,
+            email: user.email,
+            accountType: user.accountType,
+            status: user.status,
+            passwordHash: user.passwordHash,
+            emailVerifiedAt: user.emailVerifiedAt,
+            roles: user.userRoles.map((it) => it.role.name),
+        };
+    }
+    async getLoginProfile(email) {
+        const cacheKey = this.getLoginProfileKey(email);
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const inFlightLoader = this.loginProfileLoaders.get(cacheKey);
+        if (inFlightLoader) {
+            return inFlightLoader;
+        }
+        const loader = (async () => {
+            const loaded = await this.loadLoginProfile(email);
+            await this.cacheManager.set(cacheKey, loaded, this.getLoginProfileTtlMs());
+            return loaded;
+        })().finally(() => {
+            this.loginProfileLoaders.delete(cacheKey);
+        });
+        this.loginProfileLoaders.set(cacheKey, loader);
+        return loader;
     }
     generateCode() {
         return Math.floor(100000 + Math.random() * 900000).toString();
@@ -75,7 +142,7 @@ let AuthService = class AuthService {
         if (existingUser) {
             throw new common_1.ConflictException('Email already exists');
         }
-        const passwordHash = await bcrypt.hash(registerDto.password, 10);
+        const passwordHash = await bcrypt.hash(registerDto.password, this.getPasswordHashRounds());
         const code = this.generateCode();
         const pendingData = {
             firstName: registerDto.firstName,
@@ -86,12 +153,6 @@ let AuthService = class AuthService {
             code,
         };
         await this.cacheManager.set(this.getVerificationKey(email), pendingData, 10 * 60 * 1000);
-        await this.rabbitMqService.publish('email.verification', {
-            to: email,
-            subject: 'Verify your ECMS account',
-            code,
-            template: 'verify-email',
-        });
         return {
             message: 'Registration pending verification. Please check your email for verification code.',
             expiresInSeconds: 600,
@@ -106,12 +167,6 @@ let AuthService = class AuthService {
         const code = this.generateCode();
         pending.code = code;
         await this.cacheManager.set(key, pending, 10 * 60 * 1000);
-        await this.rabbitMqService.publish('email.verification', {
-            to: pending.email,
-            subject: 'Your new ECMS verification code',
-            code,
-            template: 'verify-email',
-        });
         return { message: 'Verification code resent.' };
     }
     async verifyEmail(dto) {
@@ -143,6 +198,7 @@ let AuthService = class AuthService {
             include: { userRoles: { include: { role: true } } },
         });
         await this.cacheManager.del(key);
+        await this.cacheManager.del(this.getLoginProfileKey(email));
         const payload = {
             sub: user.id,
             email: user.email,
@@ -156,18 +212,25 @@ let AuthService = class AuthService {
             user: payload,
         };
     }
-    async login(loginDto) {
-        const user = (await this.prisma.user.findUnique({
-            where: { email: loginDto.email.toLowerCase() },
-            include: { userRoles: { include: { role: true } } },
-        }));
-        if (!user || !user.passwordHash) {
+    async login(loginDto, tracker = 'anonymous') {
+        const email = loginDto.email.toLowerCase();
+        const fastFailKey = this.getLoginFastFailKey(email, tracker);
+        const isFastFail = await this.cacheManager.get(fastFailKey);
+        if (isFastFail) {
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
+        const user = await this.getLoginProfile(email);
+        if (!user || !user.passwordHash) {
+            await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
+            throw new common_1.UnauthorizedException('Invalid email or password');
+        }
+        await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.passwordHash);
         if (!isPasswordValid) {
+            await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
             throw new common_1.UnauthorizedException('Invalid email or password');
         }
+        await this.cacheManager.del(fastFailKey);
         if (!user.emailVerifiedAt) {
             throw new common_1.UnauthorizedException('Email is not verified');
         }
@@ -176,7 +239,7 @@ let AuthService = class AuthService {
             email: user.email,
             accountType: user.accountType,
             status: user.status,
-            roles: user.userRoles.map((it) => it.role.name),
+            roles: user.roles,
         };
         return {
             access_token: await this.jwtService.signAsync(payload),
@@ -187,9 +250,8 @@ let AuthService = class AuthService {
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
-    __param(3, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
+    __param(2, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        jwt_1.JwtService,
-        rabbitmq_service_1.RabbitMqService, Object])
+        jwt_1.JwtService, Object])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

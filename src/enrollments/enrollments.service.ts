@@ -13,14 +13,59 @@ export class EnrollmentsService {
 			skip,
 			take: limit,
 			orderBy: { enrolledAt: 'desc' },
-			include: { student: true, class: true },
+			select: {
+				id: true,
+				classId: true,
+				studentId: true,
+				status: true,
+				enrolledAt: true,
+				student: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						status: true,
+					},
+				},
+				class: {
+					select: {
+						id: true,
+						name: true,
+						status: true,
+						startDate: true,
+						endDate: true,
+					},
+				},
+			},
 		});
 	}
 
 	findOne(id: string) {
 		return this.prisma.enrollment.findUnique({
 			where: { id },
-			include: { student: true, class: true },
+			include: {
+				student: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						status: true,
+						accountType: true,
+					},
+				},
+				class: {
+					select: {
+						id: true,
+						name: true,
+						status: true,
+						startDate: true,
+						endDate: true,
+						capacity: true,
+					},
+				},
+			},
 		});
 	}
 

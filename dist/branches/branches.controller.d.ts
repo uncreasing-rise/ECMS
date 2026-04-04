@@ -1,38 +1,37 @@
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 export declare class BranchesController {
     private readonly branchesService;
     constructor(branchesService: BranchesService);
-    findAll(): import("@prisma/client").Prisma.PrismaPromise<({
-        parentBranch: {
-            id: string;
-            status: string;
-            name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
-        } | null;
-        childBranches: {
-            id: string;
-            status: string;
-            name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
-        }[];
-    } & {
+    findAll(query: PaginationQueryDto): import("@prisma/client").Prisma.PrismaPromise<{
         id: string;
         status: string;
+        _count: {
+            childBranches: number;
+            users: number;
+            classes: number;
+            leads: number;
+        };
         name: string;
         location: string | null;
         parentBranchId: string | null;
         timezone: string | null;
         currency: string | null;
-    })[]>;
+        parentBranch: {
+            id: string;
+            status: string;
+            name: string;
+        } | null;
+    }[]>;
     findOne(id: string): import("@prisma/client").Prisma.Prisma__BranchClient<({
+        _count: {
+            childBranches: number;
+            users: number;
+            classes: number;
+            leads: number;
+        };
         parentBranch: {
             id: string;
             status: string;
@@ -46,25 +45,14 @@ export declare class BranchesController {
             id: string;
             status: string;
             name: string;
-            location: string | null;
-            parentBranchId: string | null;
-            timezone: string | null;
-            currency: string | null;
         }[];
         users: {
             email: string;
             firstName: string;
             lastName: string;
-            phone: string | null;
             id: string;
-            passwordHash: string | null;
-            emailVerifiedAt: Date | null;
-            branchId: string | null;
             accountType: string;
             status: string;
-            createdAt: Date;
-            updatedAt: Date;
-            deletedAt: Date | null;
         }[];
     } & {
         id: string;

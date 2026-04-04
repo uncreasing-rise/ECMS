@@ -4,14 +4,20 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
-import { RabbitMqService } from '../infrastructure/queue/rabbitmq.service';
 export declare class AuthService {
     private readonly prisma;
     private readonly jwtService;
-    private readonly rabbitMqService;
     private readonly cacheManager;
-    constructor(prisma: PrismaService, jwtService: JwtService, rabbitMqService: RabbitMqService, cacheManager: Cache);
+    private readonly loginProfileLoaders;
+    constructor(prisma: PrismaService, jwtService: JwtService, cacheManager: Cache);
     private getVerificationKey;
+    private getLoginProfileKey;
+    private getLoginFastFailKey;
+    private getLoginProfileTtlMs;
+    private getLoginFastFailTtlMs;
+    private getPasswordHashRounds;
+    private loadLoginProfile;
+    private getLoginProfile;
     private generateCode;
     register(registerDto: RegisterDto): Promise<{
         message: string;
@@ -31,7 +37,7 @@ export declare class AuthService {
             roles: string[];
         };
     }>;
-    login(loginDto: LoginDto): Promise<{
+    login(loginDto: LoginDto, tracker?: string): Promise<{
         access_token: string;
         user: {
             sub: string;

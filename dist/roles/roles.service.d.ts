@@ -74,7 +74,7 @@ export declare class RolesService {
         category: string;
         action: string;
     } | null>;
-    findAllPermissions(): Promise<{
+    findAllPermissions(page?: number, limit?: number): Promise<{
         id: string;
         name: string;
         category: string;
@@ -96,7 +96,7 @@ export declare class RolesService {
         category: string;
         action: string;
     }>;
-    getRolePermissions(roleId: string): Promise<({
+    getRolePermissions(roleId: string, page?: number, limit?: number): Promise<({
         permission: {
             id: string;
             name: string;

@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-04-04T04:25:18.014Z",
+  "target": "http://localhost:3000/api/v1/auth/login",
+  "durationSeconds": 20,
+  "phases": [
+    1000,
+    3000,
+    5000,
+    10000
+  ],
+  "thresholds": {
+    "minRps": 300,
+    "maxP95Ms": 2500,
+    "maxErrorRate": 0.02
+  },
+  "results": [
+    {
+      "connections": 1000,
+      "avgRps": 17.2,
+      "p95": 6242,
+      "errors": 2975,
+      "timeouts": 985,
+      "status2xx": 0,
+      "status4xx": 0,
+      "status5xx": 344,
+      "errorRate": 0.8963543235914432,
+      "checks": {
+        "rps": false,
+        "p95": false,
+        "errorRate": false
+      },
+      "passed": false
+    },
+    {
+      "connections": 3000,
+      "avgRps": 3.75,
+      "p95": 3198,
+      "errors": 4962,
+      "timeouts": 2999,
+      "status2xx": 0,
+      "status4xx": 0,
+      "status5xx": 75,
+      "errorRate": 0.9851101846337106,
+      "checks": {
+        "rps": false,
+        "p95": false,
+        "errorRate": false
+      },
+      "passed": false
+    },
+    {
+      "connections": 5000,
+      "avgRps": 0,
+      "p95": 0,
+      "errors": 6879,
+      "timeouts": 3113,
+      "status2xx": 0,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errorRate": 1,
+      "checks": {
+        "rps": false,
+        "p95": true,
+        "errorRate": false
+      },
+      "passed": false
+    },
+    {
+      "connections": 10000,
+      "avgRps": 0,
+      "p95": 0,
+      "errors": 10000,
+      "timeouts": 10000,
+      "status2xx": 0,
+      "status4xx": 0,
+      "status5xx": 0,
+      "errorRate": 1,
+      "checks": {
+        "rps": false,
+        "p95": true,
+        "errorRate": false
+      },
+      "passed": false
+    }
+  ],
+  "overallPassed": false
+}

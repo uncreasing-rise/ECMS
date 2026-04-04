@@ -27,12 +27,13 @@ import { AppThrottlerGuard } from './common/guards/app-throttler.guard';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const isLoadTestMode = configService.get<string>('LOAD_TEST_MODE', 'false') === 'true';
         const redisEnabled = configService.get<string>('REDIS_ENABLED', 'false') === 'true';
         const redisHost = configService.get<string>('REDIS_HOST', '127.0.0.1');
         const redisPort = Number(configService.get<string>('REDIS_PORT', '6379'));
         const redisPassword = configService.get<string>('REDIS_PASSWORD');
         const ttlMs = Number(configService.get<string>('THROTTLE_TTL_MS', '60000'));
-        const limit = Number(configService.get<string>('THROTTLE_LIMIT', '300'));
+        const limit = Number(configService.get<string>('THROTTLE_LIMIT', isLoadTestMode ? '50000' : '300'));
 
         const throttlerOptions = {
           throttlers: [

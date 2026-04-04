@@ -55,8 +55,13 @@ let RolesService = class RolesService {
     async findPermissionById(id) {
         return this.prisma.permission.findUnique({ where: { id } });
     }
-    async findAllPermissions() {
-        return this.prisma.permission.findMany();
+    async findAllPermissions(page = 1, limit = 50) {
+        const skip = (page - 1) * limit;
+        return this.prisma.permission.findMany({
+            skip,
+            take: limit,
+            orderBy: { name: 'asc' },
+        });
     }
     async updatePermission(id, data) {
         return this.prisma.permission.update({ where: { id }, data });
@@ -64,9 +69,12 @@ let RolesService = class RolesService {
     async deletePermission(id) {
         return this.prisma.permission.delete({ where: { id } });
     }
-    async getRolePermissions(roleId) {
+    async getRolePermissions(roleId, page = 1, limit = 50) {
+        const skip = (page - 1) * limit;
         return this.prisma.rolePermission.findMany({
             where: { roleId },
+            skip,
+            take: limit,
             include: { permission: true },
         });
     }

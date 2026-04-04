@@ -23,8 +23,20 @@ type PendingRegistration = {
 	code: string;
 };
 
+type LoginProfile = {
+	id: string;
+	email: string;
+	accountType: string;
+	status: string;
+	passwordHash: string | null;
+	emailVerifiedAt: Date | null;
+	roles: string[];
+};
+
 @Injectable()
 export class AuthService {
+	private readonly loginProfileLoaders = new Map<string, Promise<LoginProfile | null>>();
+
 	constructor(
 		private readonly prisma: PrismaService,
 		private readonly jwtService: JwtService,
@@ -33,6 +45,92 @@ export class AuthService {
 
 	private getVerificationKey(email: string): string {
 		return `auth:verify:${email.toLowerCase()}`;
+	}
+
+	private getLoginProfileKey(email: string): string {
+		return `auth:login:profile:${email.toLowerCase()}`;
+	}
+
+	private getLoginFastFailKey(email: string, tracker: string): string {
+		return `auth:login:fast-fail:${email.toLowerCase()}:${tracker}`;
+	}
+
+	private getLoginProfileTtlMs(): number {
+		return Number(process.env.AUTH_LOGIN_PROFILE_CACHE_TTL_MS ?? '15000');
+	}
+
+	private getLoginFastFailTtlMs(): number {
+		return Number(process.env.AUTH_LOGIN_FAST_FAIL_TTL_MS ?? '3000');
+	}
+
+	private getPasswordHashRounds(): number {
+		return Number(process.env.AUTH_PASSWORD_HASH_ROUNDS ?? '10');
+	}
+
+	private async loadLoginProfile(email: string): Promise<LoginProfile | null> {
+		const user = await this.prisma.user.findUnique({
+			where: { email },
+			select: {
+				id: true,
+				email: true,
+				accountType: true,
+				status: true,
+				passwordHash: true,
+				emailVerifiedAt: true,
+				userRoles: {
+					select: {
+						role: {
+							select: {
+								name: true,
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!user) {
+			return null;
+		}
+
+		return {
+			id: user.id,
+			email: user.email,
+			accountType: user.accountType,
+			status: user.status,
+			passwordHash: user.passwordHash,
+			emailVerifiedAt: user.emailVerifiedAt,
+			roles: user.userRoles.map((it) => it.role.name),
+		};
+	}
+
+	private async getLoginProfile(email: string): Promise<LoginProfile | null> {
+		const cacheKey = this.getLoginProfileKey(email);
+		const cached = await this.cacheManager.get<LoginProfile | null>(cacheKey);
+		if (cached !== undefined) {
+			return cached;
+		}
+
+		const inFlightLoader = this.loginProfileLoaders.get(cacheKey);
+		if (inFlightLoader) {
+			return inFlightLoader;
+		}
+
+		const loader = (async () => {
+			const loaded = await this.loadLoginProfile(email);
+			await this.cacheManager.set(
+				cacheKey,
+				loaded,
+				this.getLoginProfileTtlMs(),
+			);
+
+			return loaded;
+		})().finally(() => {
+			this.loginProfileLoaders.delete(cacheKey);
+		});
+
+		this.loginProfileLoaders.set(cacheKey, loader);
+		return loader;
 	}
 
 	private generateCode(): string {
@@ -47,7 +145,10 @@ export class AuthService {
 			throw new ConflictException('Email already exists');
 		}
 
-		const passwordHash = await bcrypt.hash(registerDto.password, 10);
+		const passwordHash = await bcrypt.hash(
+			registerDto.password,
+			this.getPasswordHashRounds(),
+		);
 		const code = this.generateCode();
 		const pendingData: PendingRegistration = {
 			firstName: registerDto.firstName,
@@ -130,6 +231,7 @@ export class AuthService {
 		});
 
 		await this.cacheManager.del(key);
+		await this.cacheManager.del(this.getLoginProfileKey(email));
 
 		const payload = {
 			sub: user.id,
@@ -146,25 +248,23 @@ export class AuthService {
 		};
 	}
 
-	async login(loginDto: LoginDto) {
-		type LoginUser = {
-			id: string;
-			email: string;
-			accountType: string;
-			status: string;
-			passwordHash: string | null;
-			emailVerifiedAt: Date | null;
-			userRoles: Array<{ role: { name: string } }>;
-		};
-
-		const user = (await this.prisma.user.findUnique({
-			where: { email: loginDto.email.toLowerCase() },
-			include: { userRoles: { include: { role: true } } },
-		})) as LoginUser | null;
-
-		if (!user || !user.passwordHash) {
+	async login(loginDto: LoginDto, tracker = 'anonymous') {
+		const email = loginDto.email.toLowerCase();
+		const fastFailKey = this.getLoginFastFailKey(email, tracker);
+		const isFastFail = await this.cacheManager.get<boolean>(fastFailKey);
+		if (isFastFail) {
 			throw new UnauthorizedException('Invalid email or password');
 		}
+
+		const user = await this.getLoginProfile(email);
+
+		if (!user || !user.passwordHash) {
+			await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
+			throw new UnauthorizedException('Invalid email or password');
+		}
+
+		// Guard concurrent password checks for the same email/tracker burst.
+		await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
 
 		const isPasswordValid = await bcrypt.compare(
 			loginDto.password,
@@ -172,8 +272,11 @@ export class AuthService {
 		);
 
 		if (!isPasswordValid) {
+			await this.cacheManager.set(fastFailKey, true, this.getLoginFastFailTtlMs());
 			throw new UnauthorizedException('Invalid email or password');
 		}
+
+		await this.cacheManager.del(fastFailKey);
 
 		if (!user.emailVerifiedAt) {
 			throw new UnauthorizedException('Email is not verified');
@@ -184,7 +287,7 @@ export class AuthService {
 			email: user.email,
 			accountType: user.accountType,
 			status: user.status,
-			roles: user.userRoles.map((it) => it.role.name),
+			roles: user.roles,
 		};
 
 		return {

@@ -17,16 +17,102 @@ let ClassesService = class ClassesService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    findAll() {
+    findAll(page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
         return this.prisma.class.findMany({
+            skip,
+            take: limit,
             orderBy: { startDate: 'desc' },
-            include: { course: true, branch: true, teacher: true, enrollments: true },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                capacity: true,
+                startDate: true,
+                endDate: true,
+                courseId: true,
+                branchId: true,
+                teacherId: true,
+                course: {
+                    select: {
+                        id: true,
+                        name: true,
+                        level: true,
+                    },
+                },
+                branch: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true,
+                    },
+                },
+                teacher: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        enrollments: true,
+                        assignments: true,
+                    },
+                },
+            },
         });
     }
     findOne(id) {
         return this.prisma.class.findUnique({
             where: { id },
-            include: { course: true, branch: true, teacher: true, enrollments: true, assignments: true },
+            include: {
+                course: true,
+                branch: true,
+                teacher: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        status: true,
+                    },
+                },
+                enrollments: {
+                    select: {
+                        id: true,
+                        status: true,
+                        enrolledAt: true,
+                        student: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                            },
+                        },
+                    },
+                    orderBy: { enrolledAt: 'desc' },
+                    take: 200,
+                },
+                assignments: {
+                    select: {
+                        id: true,
+                        title: true,
+                        dueDate: true,
+                        maxScore: true,
+                    },
+                    orderBy: { dueDate: 'desc' },
+                    take: 100,
+                },
+                _count: {
+                    select: {
+                        enrollments: true,
+                        assignments: true,
+                    },
+                },
+            },
         });
     }
     create(dto) {

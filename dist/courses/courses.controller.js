@@ -18,13 +18,14 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const courses_service_1 = require("./courses.service");
 const create_course_dto_1 = require("./dto/create-course.dto");
 const update_course_dto_1 = require("./dto/update-course.dto");
+const pagination_query_dto_1 = require("../common/dto/pagination-query.dto");
 let CoursesController = class CoursesController {
     coursesService;
     constructor(coursesService) {
         this.coursesService = coursesService;
     }
-    findAll() {
-        return this.coursesService.findAll();
+    findAll(query) {
+        return this.coursesService.findAll(query.page, query.limit);
     }
     findOne(id) {
         return this.coursesService.findOne(id);
@@ -42,8 +43,9 @@ let CoursesController = class CoursesController {
 exports.CoursesController = CoursesController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [pagination_query_dto_1.PaginationQueryDto]),
     __metadata("design:returntype", void 0)
 ], CoursesController.prototype, "findAll", null);
 __decorate([

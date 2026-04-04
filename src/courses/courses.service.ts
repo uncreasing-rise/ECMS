@@ -13,14 +13,47 @@ export class CoursesService {
 			skip,
 			take: limit,
 			orderBy: { name: 'asc' },
-			include: { classes: true },
+			select: {
+				id: true,
+				name: true,
+				level: true,
+				status: true,
+				durationWeeks: true,
+				_count: {
+					select: {
+						classes: true,
+						coursePrerequisites: true,
+						isPrerequisiteOf: true,
+					},
+				},
+			},
 		});
 	}
 
 	findOne(id: string) {
 		return this.prisma.course.findUnique({
 			where: { id },
-			include: { classes: true, coursePrerequisites: true, isPrerequisiteOf: true },
+			include: {
+				classes: {
+					select: {
+						id: true,
+						name: true,
+						status: true,
+						startDate: true,
+						endDate: true,
+						capacity: true,
+					},
+					orderBy: { startDate: 'desc' },
+					take: 100,
+				},
+				coursePrerequisites: true,
+				isPrerequisiteOf: true,
+				_count: {
+					select: {
+						classes: true,
+					},
+				},
+			},
 		});
 	}
 
