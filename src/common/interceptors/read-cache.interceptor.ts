@@ -69,7 +69,6 @@ export class ReadCacheInterceptor implements NestInterceptor {
       url.startsWith('/api/v1/courses') ||
       url.startsWith('/api/v1/classes') ||
       url.startsWith('/api/v1/enrollments') ||
-      url.startsWith('/api/v1/finance') ||
       url.startsWith('/api/v1/leads') ||
       url.startsWith('/api/v1/sessions') ||
       url.startsWith('/api/v1/audit-logs')

@@ -125,7 +125,7 @@ export class RolesService {
 
   async getRolePermissions(roleId: string, page = 1, limit = 50) {
 	const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const skip = (page - 1) * limit;
+    const skip = (page - 1) * safeLimit;
     return this.prisma.rolePermission.findMany({
       where: { roleId },
       skip,

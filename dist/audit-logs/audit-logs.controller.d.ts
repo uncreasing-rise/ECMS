@@ -1,6 +1,6 @@
 import { AuditLogsService } from './audit-logs.service';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-import { ListQueryDto } from '../common/dto/list-query.dto';
+import { ListQueryMax100Dto } from '../common/dto/list-query-max100.dto';
 export declare class AuditLogsController {
     private readonly auditLogsService;
     constructor(auditLogsService: AuditLogsService);
@@ -15,7 +15,7 @@ export declare class AuditLogsController {
         timestamp: Date;
         actorId: string | null;
     }>;
-    findLogs(query: ListQueryDto): Promise<{
+    findLogs(query: ListQueryMax100Dto): Promise<{
         id: string;
         action: string;
         module: string;
@@ -24,7 +24,7 @@ export declare class AuditLogsController {
         timestamp: Date;
         actorId: string | null;
     }[]>;
-    findLogsByModule(module: string, query: ListQueryDto): Promise<{
+    findLogsByModule(module: string, query: ListQueryMax100Dto): Promise<{
         id: string;
         action: string;
         module: string;
@@ -33,7 +33,7 @@ export declare class AuditLogsController {
         timestamp: Date;
         actorId: string | null;
     }[]>;
-    findLogsByActor(actorId: string, query: ListQueryDto): Promise<{
+    findLogsByActor(actorId: string, query: ListQueryMax100Dto): Promise<{
         id: string;
         action: string;
         module: string;
