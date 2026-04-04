@@ -1,0 +1,114 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ecms}
+      POSTGRES_USER: ${POSTGRES_USER:-ecms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecms} -d ${POSTGRES_DB:-ecms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ecms-net
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_USERNAME: ${POSTGRES_USER:-ecms}
+      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRESQL_DATABASE: ${POSTGRES_DB:-ecms}
+      PGBOUNCER_AUTH_TYPE: md5
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_IGNORE_STARTUP_PARAMETERS: extra_float_digits
+      PGBOUNCER_PORT: 6432
+      PGBOUNCER_MAX_CLIENT_CONN: 2000
+      PGBOUNCER_DEFAULT_POOL_SIZE: 50
+      PGBOUNCER_RESERVE_POOL_SIZE: 20
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 600
+      PGBOUNCER_SERVER_LIFETIME: 3600
+    ports:
+      - "6432:6432"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6432"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - ecms-net
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--requirepass", "${REDIS_PASSWORD:-change-me}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-change-me} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - ecms-net
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ecms}:${POSTGRES_PASSWORD:-change-me}@pgbouncer:6432/${POSTGRES_DB:-ecms}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-me}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-300}
+      THROTTLE_TTL_MS: ${THROTTLE_TTL_MS:-60000}
+      THROTTLE_AUTH_TTL_MS: ${THROTTLE_AUTH_TTL_MS:-60000}
+      THROTTLE_AUTH_REGISTER_LIMIT: ${THROTTLE_AUTH_REGISTER_LIMIT:-10}
+      THROTTLE_AUTH_VERIFY_LIMIT: ${THROTTLE_AUTH_VERIFY_LIMIT:-20}
+      THROTTLE_AUTH_RESEND_LIMIT: ${THROTTLE_AUTH_RESEND_LIMIT:-10}
+      THROTTLE_AUTH_LOGIN_LIMIT: ${THROTTLE_AUTH_LOGIN_LIMIT:-20}
+      LOAD_TEST_MODE: "false"
+      AUTH_LOGIN_PROFILE_CACHE_TTL_MS: ${AUTH_LOGIN_PROFILE_CACHE_TTL_MS:-15000}
+      AUTH_LOGIN_FAST_FAIL_TTL_MS: ${AUTH_LOGIN_FAST_FAIL_TTL_MS:-3000}
+      AUTH_PASSWORD_HASH_ROUNDS: ${AUTH_PASSWORD_HASH_ROUNDS:-10}
+      REQUEST_LOG_SLOW_MS: ${REQUEST_LOG_SLOW_MS:-1000}
+      REQUEST_LOG_SAMPLE_RATE: ${REQUEST_LOG_SAMPLE_RATE:-0.02}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-0}
+    ports:
+      - "3000:3000"
+    networks:
+      - ecms-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ecms-net:
+    driver: bridge
