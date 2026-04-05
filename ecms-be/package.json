@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "seed:question-bank": "ts-node src/scripts/seed-question-bank.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -32,6 +33,7 @@
     "@prisma/adapter-pg": "^7.6.0",
     "bcryptjs": "^3.0.2",
     "firebase-admin": "^13.7.0",
+    "helmet": "^8.1.0",
     "ioredis": "^5.8.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -41,6 +43,11 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1"
+  },
+  "overrides": {
+    "@tootallnate/once": "^3.0.1",
+    "path-to-regexp": "^8.4.2",
+    "lodash": "^4.18.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -77,6 +84,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

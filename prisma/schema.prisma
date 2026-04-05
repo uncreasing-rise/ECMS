@@ -90,19 +90,6 @@ model band_rubrics {
   exam_section_configs exam_section_configs[]
 }
 
-model branches {
-  id         String       @id @db.Uuid
-  name       String       @db.VarChar(100)
-  address    String?
-  phone      String?      @db.VarChar(20)
-  is_active  Boolean?     @default(true)
-  created_at DateTime?    @db.Timestamp(6)
-  classes    classes[]
-  courses    courses[]
-  rooms      rooms[]
-  user_roles user_roles[]
-}
-
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model class_schedules {
   id             String        @id @db.Uuid
@@ -125,7 +112,6 @@ model classes {
   id              String            @id @db.Uuid
   course_id       String            @db.Uuid
   teacher_id      String?           @db.Uuid
-  branch_id       String            @db.Uuid
   name            String?           @db.VarChar(150)
   max_students    Int?
   start_date      DateTime?         @db.Date
@@ -134,7 +120,6 @@ model classes {
   created_at      DateTime?         @db.Timestamp(6)
   assignments     assignments[]
   class_schedules class_schedules[]
-  branches        branches          @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   courses         courses           @relation(fields: [course_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users           users?            @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   doc_folders     doc_folders[]
@@ -159,7 +144,6 @@ model course_modules {
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model courses {
   id             String           @id @db.Uuid
-  branch_id      String?          @db.Uuid
   name           String           @db.VarChar(150)
   description    String?
   level          String?          @db.VarChar(30)
@@ -169,7 +153,6 @@ model courses {
   created_at     DateTime?        @db.Timestamp(6)
   classes        classes[]
   course_modules course_modules[]
-  branches       branches?        @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -625,12 +608,10 @@ model roles {
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model rooms {
   id              String            @id @db.Uuid
-  branch_id       String            @db.Uuid
   name            String?           @db.VarChar(50)
   capacity        Int?
   is_active       Boolean?          @default(true)
   class_schedules class_schedules[]
-  branches        branches          @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -676,13 +657,11 @@ model user_roles {
   id          String    @id @db.Uuid
   user_id     String    @db.Uuid
   role_id     String    @db.Uuid
-  branch_id   String?   @db.Uuid
   assigned_at DateTime? @db.Timestamp(6)
-  branches    branches? @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   roles       roles     @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users       users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([user_id, role_id, branch_id], map: "user_roles_user_id_role_id_branch_id_idx")
+  @@unique([user_id, role_id], map: "user_roles_user_id_role_id_idx")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

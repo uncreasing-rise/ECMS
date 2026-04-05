@@ -28,7 +28,10 @@ export class MailService {
     userId: string;
   }) {
     const verify_url = `${this.config.get('FRONTEND_URL')}/auth/verify-email?token=${params.token}&uid=${params.userId}`;
-    const template = verifyEmailTemplate({ full_name: params.full_name, verify_url });
+    const template = verifyEmailTemplate({
+      full_name: params.full_name,
+      verify_url,
+    });
 
     await this.send({ to: params.to, ...template });
   }
@@ -40,14 +43,19 @@ export class MailService {
     userId: string;
   }) {
     const reset_url = `${this.config.get('FRONTEND_URL')}/auth/reset-password?token=${params.token}&uid=${params.userId}`;
-    const template = resetPasswordTemplate({ full_name: params.full_name, reset_url });
+    const template = resetPasswordTemplate({
+      full_name: params.full_name,
+      reset_url,
+    });
 
     await this.send({ to: params.to, ...template });
   }
 
   private async send(params: { to: string; subject: string; html: string }) {
     if (!this.resend || !this.from) {
-      this.logger.warn(`Skip sending email to ${params.to}: mail provider is not configured.`);
+      this.logger.warn(
+        `Skip sending email to ${params.to}: mail provider is not configured.`,
+      );
       return;
     }
 
@@ -67,7 +75,9 @@ export class MailService {
         return;
       }
 
-      this.logger.log(`Email queued tới ${params.to} (id=${data?.id ?? 'unknown'})`);
+      this.logger.log(
+        `Email queued tới ${params.to} (id=${data?.id ?? 'unknown'})`,
+      );
     } catch (err) {
       this.logger.error(`Gửi email thất bại tới ${params.to}`, err);
     }

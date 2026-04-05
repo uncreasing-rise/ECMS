@@ -9,7 +9,10 @@ import { FirebaseModule } from './common/firebase/firebase.module';
 import { WebSocketModule } from './common/websocket/websocket.module';
 import { DeviceTokensModule } from './common/device-tokens/device-tokens.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { ClassesModule } from './modules/classes/classes.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { StudentsModule } from './modules/students/students.module';
 
 @Module({
   imports: [
@@ -25,10 +28,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     WebSocketModule,
     DeviceTokensModule,
     AuthModule,
+    CoursesModule,
+    ClassesModule,
     NotificationsModule,
+    StudentsModule,
   ],
-  providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

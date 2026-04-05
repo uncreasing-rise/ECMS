@@ -22,6 +22,7 @@ import { DeviceTokensService } from '../../common/device-tokens/device-tokens.se
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -36,12 +37,32 @@ export class NotificationsController {
   // ─── Get Notifications ────────────────────────
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách thông báo' })
-  @ApiQuery({ name: 'skip', required: false, type: Number, description: 'Bỏ qua N thông báo' })
-  @ApiQuery({ name: 'take', required: false, type: Number, description: 'Lấy N thông báo' })
-  @ApiQuery({ name: 'ref_type', required: false, type: String, description: 'Lọc theo loại tham chiếu' })
-  @ApiQuery({ name: 'unread_only', required: false, type: Boolean, description: 'Chỉ hiển thị chưa đọc' })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description: 'Bỏ qua N thông báo',
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    type: Number,
+    description: 'Lấy N thông báo',
+  })
+  @ApiQuery({
+    name: 'ref_type',
+    required: false,
+    type: String,
+    description: 'Lọc theo loại tham chiếu',
+  })
+  @ApiQuery({
+    name: 'unread_only',
+    required: false,
+    type: Boolean,
+    description: 'Chỉ hiển thị chưa đọc',
+  })
   getNotifications(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
     @Query('ref_type') ref_type?: string,
@@ -56,31 +77,28 @@ export class NotificationsController {
     });
   }
 
+  // ─── Get Unread Count ────────────────────────
+  @Get('unread/count')
+  @ApiOperation({ summary: 'Lấy số thông báo chưa đọc' })
+  getUnreadCount(@CurrentUser() user: AuthenticatedUser) {
+    return this.notificationsService.getUnreadCount(user.id);
+  }
+
   // ─── Get Single Notification ──────────────────
   @Get(':id')
   @ApiOperation({ summary: 'Lấy chi tiết thông báo' })
   getNotification(
     @Param('id') id: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.notificationsService.getNotification(id, user.id);
-  }
-
-  // ─── Get Unread Count ────────────────────────
-  @Get('unread/count')
-  @ApiOperation({ summary: 'Lấy số thông báo chưa đọc' })
-  getUnreadCount(@CurrentUser() user: any) {
-    return this.notificationsService.getUnreadCount(user.id);
   }
 
   // ─── Mark Notification as Read ────────────────
   @Patch(':id/mark-read')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đánh dấu thông báo đã đọc' })
-  markAsRead(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  markAsRead(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.notificationsService.markAsRead(id, user.id);
   }
 
@@ -88,7 +106,7 @@ export class NotificationsController {
   @Patch('mark-all-read')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đánh dấu toàn bộ thông báo đã đọc' })
-  markAllAsRead(@CurrentUser() user: any) {
+  markAllAsRead(@CurrentUser() user: AuthenticatedUser) {
     return this.notificationsService.markAllAsRead(user.id);
   }
 
@@ -96,10 +114,7 @@ export class NotificationsController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xóa thông báo' })
-  delete(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  delete(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.notificationsService.delete(id, user.id);
   }
 
@@ -107,7 +122,7 @@ export class NotificationsController {
   @Delete()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Xóa toàn bộ thông báo' })
-  deleteAll(@CurrentUser() user: any) {
+  deleteAll(@CurrentUser() user: AuthenticatedUser) {
     return this.notificationsService.deleteAll(user.id);
   }
 
@@ -118,7 +133,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng ký device token cho push notifications' })
   registerDeviceToken(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: RegisterDeviceTokenDto,
   ) {
     return this.deviceTokensService.registerToken({
@@ -134,16 +149,19 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Lấy danh sách các devices' })
   @ApiQuery({ name: 'active_only', required: false, type: Boolean })
   getUserDevices(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('active_only') activeOnly?: string,
   ) {
-    return this.deviceTokensService.getUserTokens(user.id, activeOnly !== 'false');
+    return this.deviceTokensService.getUserTokens(
+      user.id,
+      activeOnly !== 'false',
+    );
   }
 
   // ─── Check Device Health ──────────────────────
   @Get('device-tokens/health')
   @ApiOperation({ summary: 'Kiểm tra tình trạng devices' })
-  checkDeviceHealth(@CurrentUser() user: any) {
+  checkDeviceHealth(@CurrentUser() user: AuthenticatedUser) {
     return this.deviceTokensService.checkTokenHealth(user.id);
   }
 
@@ -152,7 +170,7 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Thu hồi device token' })
   revokeDevice(
-    @CurrentUser() user: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('token_id') token_id: string,
   ) {
     return this.deviceTokensService.revokeToken(user.id, token_id);
@@ -162,7 +180,7 @@ export class NotificationsController {
   @Patch('device-tokens/revoke-all')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Thu hồi tất cả devices' })
-  revokeAllDevices(@CurrentUser() user: any) {
+  revokeAllDevices(@CurrentUser() user: AuthenticatedUser) {
     return this.deviceTokensService.revokeAllTokens(user.id);
   }
 }

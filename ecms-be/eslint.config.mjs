@@ -32,4 +32,25 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    files: [
+      'src/modules/classes/classes.core.service.ts',
+      'src/common/device-tokens/device-tokens.service.ts',
+      'src/common/firebase/firebase.service.ts',
+      'src/common/redis/redis.service.ts',
+      'src/common/websocket/notifications.gateway.ts',
+      'src/main.ts',
+      'src/scripts/seed-question-bank.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
 );

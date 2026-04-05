@@ -1,7 +1,13 @@
 import {
-  Controller, Post, Get, Body,
-  Req, Query, UseGuards,
-  HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Body,
+  Req,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +20,8 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
+import type { AuthenticatedUser } from './interfaces/authenticated-user.interface';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -24,8 +32,20 @@ export class AuthController {
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Đăng ký tài khoản' })
-  register(@Body() dto: RegisterDto, @Req() req: any) {
-    return this.authService.register(dto, req.ip);
+  register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, req.ip ?? '');
+  }
+
+  @Public()
+  @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác nhận email (GET link từ email)' })
+  verifyEmailFromLink(
+    @Query('uid') userId: string,
+    @Query('token') token: string,
+    @Req() req: Request,
+  ) {
+    return this.authService.verifyEmail(userId, token, req.ip ?? '');
   }
 
   @Public()
@@ -35,9 +55,9 @@ export class AuthController {
   verifyEmail(
     @Query('uid') userId: string,
     @Query('token') token: string,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
-    return this.authService.verifyEmail(userId, token, req.ip);
+    return this.authService.verifyEmail(userId, token, req.ip ?? '');
   }
 
   @Public()
@@ -45,8 +65,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Gửi lại email xác nhận' })
-  resendVerification(@Body('email') email: string, @Req() req: any) {
-    return this.authService.resendVerification(email, req.ip);
+  resendVerification(@Body('email') email: string, @Req() req: Request) {
+    return this.authService.resendVerification(email, req.ip ?? '');
   }
 
   @Public()
@@ -54,8 +74,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Đăng nhập' })
-  login(@Body() dto: LoginDto, @Req() req: any) {
-    return this.authService.login(dto, req.ip);
+  login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.login(dto, req.ip ?? '');
   }
 
   @Public()
@@ -80,23 +100,23 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Quên mật khẩu' })
-  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: any) {
-    return this.authService.forgotPassword(dto.email, req.ip);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto.email, req.ip ?? '');
   }
 
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đặt lại mật khẩu' })
-  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: any) {
-    return this.authService.resetPassword(dto, req.ip);
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
+    return this.authService.resetPassword(dto, req.ip ?? '');
   }
 
   @Get('profile')
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lấy thông tin cá nhân' })
-  getProfile(@CurrentUser() user: any) {
+  getProfile(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getProfile(user.id);
   }
 }

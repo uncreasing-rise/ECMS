@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -16,10 +17,17 @@ import { randomUUID } from 'node:crypto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RoleName } from './enums/role-name.enum';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const PENDING_VERIFICATION_TTL_HOURS = 24;
+
+interface RefreshTokenPayload {
+  sub: string;
+  email: string;
+  exp: number;
+}
 
 @Injectable()
 export class AuthService {
@@ -44,13 +52,17 @@ export class AuthService {
       }
 
       if (exists.status === 'on_hold') {
-        throw new ForbiddenException('Tài khoản đã bị khoá, vui lòng liên hệ admin');
+        throw new ForbiddenException(
+          'Tài khoản đã bị khoá, vui lòng liên hệ admin',
+        );
       }
 
       if (exists.status === 'inactive') {
         const hasCooldown = await this.redis.hasResendCooldown(exists.id);
         if (hasCooldown) {
-          throw new BadRequestException('Email đã đăng ký nhưng chưa xác thực. Vui lòng chờ 60 giây trước khi gửi lại.');
+          throw new BadRequestException(
+            'Email đã đăng ký nhưng chưa xác thực. Vui lòng chờ 60 giây trước khi gửi lại.',
+          );
         }
 
         const expired = this.isPendingVerificationExpired(exists.created_at);
@@ -63,26 +75,47 @@ export class AuthService {
               full_name: dto.full_name,
               password_hash,
               phone: dto.phone,
-              date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
+              date_of_birth: dto.date_of_birth
+                ? new Date(dto.date_of_birth)
+                : null,
               gender: dto.gender,
               status: 'inactive',
             },
           });
 
-          await this.sendVerificationEmail(refreshedUser.id, refreshedUser.email, refreshedUser.full_name);
-          await this.redis.setResendCooldown(refreshedUser.id, RESEND_COOLDOWN_SECONDS);
-          await this.writeAuditLog({ user_id: refreshedUser.id, action: 'REGISTER_RETRY', ip });
+          await this.ensureDefaultStudentRole(refreshedUser.id);
+          await this.sendVerificationEmail(
+            refreshedUser.id,
+            refreshedUser.email,
+            refreshedUser.full_name,
+          );
+          await this.redis.setResendCooldown(
+            refreshedUser.id,
+            RESEND_COOLDOWN_SECONDS,
+          );
+          await this.writeAuditLog({
+            user_id: refreshedUser.id,
+            action: 'REGISTER_RETRY',
+            ip,
+          });
 
           return {
-            message: 'Tài khoản chờ xác thực đã hết hạn. Chúng tôi đã gửi email xác nhận mới.',
+            message:
+              'Tài khoản chờ xác thực đã hết hạn. Chúng tôi đã gửi email xác nhận mới.',
           };
         }
 
-        await this.sendVerificationEmail(exists.id, exists.email, exists.full_name);
+        await this.ensureDefaultStudentRole(exists.id);
+        await this.sendVerificationEmail(
+          exists.id,
+          exists.email,
+          exists.full_name,
+        );
         await this.redis.setResendCooldown(exists.id, RESEND_COOLDOWN_SECONDS);
 
         return {
-          message: 'Email đã được đăng ký nhưng chưa xác thực. Chúng tôi đã gửi lại email xác nhận.',
+          message:
+            'Email đã được đăng ký nhưng chưa xác thực. Chúng tôi đã gửi lại email xác nhận.',
         };
       }
 
@@ -104,15 +137,7 @@ export class AuthService {
       },
     });
 
-    // Gán role student mặc định
-    const studentRole = await this.prisma.roles.findFirst({
-      where: { name: 'student' },
-    });
-    if (studentRole) {
-      await this.prisma.user_roles.create({
-        data: { id: randomUUID(), user_id: user.id, role_id: studentRole.id },
-      });
-    }
+    await this.ensureDefaultStudentRole(user.id);
 
     // Gửi verify email
     await this.sendVerificationEmail(user.id, user.email, user.full_name);
@@ -120,19 +145,19 @@ export class AuthService {
     await this.writeAuditLog({ user_id: user.id, action: 'REGISTER', ip });
 
     return {
-      message: 'Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản.',
+      message:
+        'Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản.',
     };
   }
 
   // ─── Verify Email ─────────────────────────────
   async verifyEmail(userId: string, token: string, ip: string = '') {
     const stored = await this.redis.getVerifyToken(userId);
-    if (!stored) throw new BadRequestException('Token không tồn tại hoặc đã hết hạn');
+    if (!stored)
+      throw new BadRequestException('Token không tồn tại hoặc đã hết hạn');
 
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(stored),
-      Buffer.from(token),
-    );
+    const hashedToken = this.hashToken(token);
+    const isValid = this.safeTimingEqual(stored, hashedToken);
     if (!isValid) throw new BadRequestException('Token không hợp lệ');
 
     await this.prisma.users.update({
@@ -148,12 +173,17 @@ export class AuthService {
   // ─── Resend Verification ──────────────────────
   async resendVerification(email: string, ip: string = '') {
     const normalizedEmail = email.toLowerCase();
-    const user = await this.prisma.users.findUnique({ where: { email: normalizedEmail } });
-    if (!user) return { message: 'Nếu email tồn tại, bạn sẽ nhận được mail xác nhận.' };
-    if (user.status === 'active') throw new BadRequestException('Tài khoản đã được xác nhận');
+    const user = await this.prisma.users.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (!user)
+      return { message: 'Nếu email tồn tại, bạn sẽ nhận được mail xác nhận.' };
+    if (user.status === 'active')
+      throw new BadRequestException('Tài khoản đã được xác nhận');
 
     const hasCooldown = await this.redis.hasResendCooldown(user.id);
-    if (hasCooldown) throw new BadRequestException('Vui lòng chờ 60 giây trước khi gửi lại');
+    if (hasCooldown)
+      throw new BadRequestException('Vui lòng chờ 60 giây trước khi gửi lại');
 
     await this.sendVerificationEmail(user.id, user.email, user.full_name);
     await this.redis.setResendCooldown(user.id, RESEND_COOLDOWN_SECONDS);
@@ -165,7 +195,7 @@ export class AuthService {
   // ─── Login ────────────────────────────────────
   async login(dto: LoginDto, ip: string) {
     const email = dto.email.toLowerCase();
-    
+
     // Kiểm tra failed attempts
     const failedCount = await this.redis.getFailedLogin(email);
     if (failedCount >= MAX_FAILED_ATTEMPTS) {
@@ -186,11 +216,15 @@ export class AuthService {
     }
 
     if (user.status === 'inactive') {
-      throw new UnauthorizedException('Vui lòng xác nhận email trước khi đăng nhập');
+      throw new UnauthorizedException(
+        'Vui lòng xác nhận email trước khi đăng nhập',
+      );
     }
 
     if (user.status === 'on_hold') {
-      throw new UnauthorizedException('Tài khoản đã bị khoá, vui lòng liên hệ admin');
+      throw new UnauthorizedException(
+        'Tài khoản đã bị khoá, vui lòng liên hệ admin',
+      );
     }
 
     // Đăng nhập thành công → reset counter
@@ -212,7 +246,7 @@ export class AuthService {
     if (isBlacklisted) throw new UnauthorizedException('Token đã bị thu hồi');
 
     try {
-      const payload = this.jwt.verify(token, {
+      const payload = this.jwt.verify<RefreshTokenPayload>(token, {
         secret: this.config.get('JWT_REFRESH_SECRET'),
       });
 
@@ -224,14 +258,16 @@ export class AuthService {
 
       return this.generateTokens(user.id, user.email);
     } catch {
-      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+      throw new UnauthorizedException(
+        'Refresh token không hợp lệ hoặc đã hết hạn',
+      );
     }
   }
 
   // ─── Logout ───────────────────────────────────
   async logout(refreshToken: string) {
     try {
-      const payload = this.jwt.verify(refreshToken, {
+      const payload = this.jwt.verify<RefreshTokenPayload>(refreshToken, {
         secret: this.config.get('JWT_REFRESH_SECRET'),
       });
 
@@ -248,15 +284,21 @@ export class AuthService {
   // ─── Forgot Password ──────────────────────────
   async forgotPassword(email: string, ip: string = '') {
     const normalizedEmail = email.toLowerCase();
-    const user = await this.prisma.users.findUnique({ where: { email: normalizedEmail } });
+    const user = await this.prisma.users.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     // Luôn trả về cùng message để tránh email enumeration
     if (!user || user.status !== 'active') {
-      return { message: 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.' };
+      return {
+        message:
+          'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+      };
     }
 
     const hasCooldown = await this.redis.hasResendCooldown(`reset_${user.id}`);
-    if (hasCooldown) throw new BadRequestException('Vui lòng chờ 60 giây trước khi thử lại');
+    if (hasCooldown)
+      throw new BadRequestException('Vui lòng chờ 60 giây trước khi thử lại');
 
     const token = crypto.randomBytes(32).toString('hex');
     await this.redis.setResetToken(user.id, token, 3600); // 1 giờ
@@ -269,20 +311,26 @@ export class AuthService {
       userId: user.id,
     });
 
-    await this.writeAuditLog({ user_id: user.id, action: 'FORGOT_PASSWORD', ip });
+    await this.writeAuditLog({
+      user_id: user.id,
+      action: 'FORGOT_PASSWORD',
+      ip,
+    });
 
-    return { message: 'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.' };
+    return {
+      message:
+        'Nếu email tồn tại, bạn sẽ nhận được hướng dẫn đặt lại mật khẩu.',
+    };
   }
 
   // ─── Reset Password ───────────────────────────
   async resetPassword(dto: ResetPasswordDto, ip: string) {
     const stored = await this.redis.getResetToken(dto.userId);
-    if (!stored) throw new BadRequestException('Token không tồn tại hoặc đã hết hạn');
+    if (!stored)
+      throw new BadRequestException('Token không tồn tại hoặc đã hết hạn');
 
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(stored),
-      Buffer.from(dto.token),
-    );
+    const hashedToken = this.hashToken(dto.token);
+    const isValid = this.safeTimingEqual(stored, hashedToken);
     if (!isValid) throw new BadRequestException('Token không hợp lệ');
 
     const password_hash = await bcrypt.hash(dto.new_password, 12);
@@ -293,7 +341,11 @@ export class AuthService {
     });
 
     await this.redis.delResetToken(dto.userId);
-    await this.writeAuditLog({ user_id: dto.userId, action: 'RESET_PASSWORD', ip });
+    await this.writeAuditLog({
+      user_id: dto.userId,
+      action: 'RESET_PASSWORD',
+      ip,
+    });
 
     return { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.' };
   }
@@ -328,6 +380,21 @@ export class AuthService {
     await this.mail.sendVerifyEmail({ to: email, full_name, token, userId });
   }
 
+  private safeTimingEqual(left: string, right: string) {
+    const leftBuf = Buffer.from(left);
+    const rightBuf = Buffer.from(right);
+
+    if (leftBuf.length !== rightBuf.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(leftBuf, rightBuf);
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
+  }
+
   private isPendingVerificationExpired(createdAt: Date | null): boolean {
     if (!createdAt) {
       return true;
@@ -339,14 +406,22 @@ export class AuthService {
 
   private async generateTokens(userId: string, email: string) {
     const payload = { sub: userId, email };
+    const accessSecret = this.config.get<string>('JWT_SECRET');
+    const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
+
+    if (!accessSecret || !refreshSecret) {
+      throw new InternalServerErrorException(
+        'Thiếu cấu hình JWT_SECRET hoặc JWT_REFRESH_SECRET trong biến môi trường',
+      );
+    }
 
     const [access_token, refresh_token] = await Promise.all([
       this.jwt.signAsync(payload, {
-        secret: this.config.get('JWT_SECRET'),
-        expiresIn: '15m',
+        secret: accessSecret,
+        expiresIn: '1d',
       }),
       this.jwt.signAsync(payload, {
-        secret: this.config.get('JWT_REFRESH_SECRET'),
+        secret: refreshSecret,
         expiresIn: '7d',
       }),
     ]);
@@ -354,8 +429,40 @@ export class AuthService {
     return { access_token, refresh_token };
   }
 
-  private sanitizeUser(user: any) {
-    const { password_hash, ...rest } = user;
+  private async ensureDefaultStudentRole(userId: string) {
+    const studentRole = await this.prisma.roles.upsert({
+      where: { name: RoleName.STUDENT },
+      update: {},
+      create: {
+        id: randomUUID(),
+        name: RoleName.STUDENT,
+      },
+    });
+
+    const exists = await this.prisma.user_roles.findFirst({
+      where: {
+        user_id: userId,
+        role_id: studentRole.id,
+      },
+      select: { id: true },
+    });
+
+    if (!exists) {
+      await this.prisma.user_roles.create({
+        data: {
+          id: randomUUID(),
+          user_id: userId,
+          role_id: studentRole.id,
+        },
+      });
+    }
+  }
+
+  private sanitizeUser<T extends { password_hash?: string | null }>(
+    user: T,
+  ): Omit<T, 'password_hash'> {
+    const { password_hash: _passwordHash, ...rest } = user;
+    void _passwordHash;
     return rest;
   }
 

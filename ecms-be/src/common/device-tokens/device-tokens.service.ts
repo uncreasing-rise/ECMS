@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
 
@@ -46,7 +47,10 @@ export class DeviceTokensService {
           where: { fcm_token },
           data: { last_used_at: new Date() },
         });
-        return { message: 'Token already registered', action: 'already_exists' };
+        return {
+          message: 'Token already registered',
+          action: 'already_exists',
+        };
       }
     }
 
@@ -66,7 +70,7 @@ export class DeviceTokensService {
 
   // ─── Get User Tokens ──────────────────────────
   async getUserTokens(user_id: string, activeOnly: boolean = true) {
-    const where: any = { user_id };
+    const where: Prisma.device_tokensWhereInput = { user_id };
     if (activeOnly) {
       where.is_active = true;
     }
@@ -75,7 +79,6 @@ export class DeviceTokensService {
       where,
       select: {
         id: true,
-        fcm_token: true,
         device_name: true,
         platform: true,
         is_active: true,
@@ -99,7 +102,9 @@ export class DeviceTokensService {
   }
 
   // ─── Get Active FCM Tokens for Multiple Users ──
-  async getActiveFCMTokensForUsers(user_ids: string[]): Promise<Record<string, string[]>> {
+  async getActiveFCMTokensForUsers(
+    user_ids: string[],
+  ): Promise<Record<string, string[]>> {
     if (user_ids.length === 0) return {};
 
     const tokens = await this.prisma.device_tokens.findMany({
@@ -129,7 +134,7 @@ export class DeviceTokensService {
     }
 
     if (token.user_id !== user_id) {
-      throw new BadRequestException('Cannot revoke other user\'s token');
+      throw new BadRequestException("Cannot revoke other user's token");
     }
 
     await this.prisma.device_tokens.update({

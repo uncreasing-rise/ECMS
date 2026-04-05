@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 export interface SendPushParams {
   user_id: string;
@@ -21,17 +23,32 @@ export class FirebaseService {
 
   private initializeFirebase() {
     try {
-      const serviceAccountPath = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT_PATH');
+      const serviceAccountPath = this.config.get<string>(
+        'FIREBASE_SERVICE_ACCOUNT_PATH',
+      );
       const databaseUrl = this.config.get<string>('FIREBASE_DATABASE_URL');
 
       if (!serviceAccountPath || !databaseUrl) {
-        this.logger.warn('Firebase not configured. Push notifications disabled.');
+        this.logger.warn(
+          'Firebase not configured. Push notifications disabled.',
+        );
+        return;
+      }
+
+      const resolvedServiceAccountPath =
+        this.resolveServiceAccountPath(serviceAccountPath);
+      if (!resolvedServiceAccountPath) {
+        this.logger.warn(
+          `Firebase service account not found at: ${serviceAccountPath}. Push notifications disabled.`,
+        );
         return;
       }
 
       // Load and initialize Firebase Admin SDK
-      const serviceAccount = require(serviceAccountPath);
-      
+      const serviceAccount = JSON.parse(
+        fs.readFileSync(resolvedServiceAccountPath, 'utf8'),
+      ) as admin.ServiceAccount;
+
       if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
@@ -44,6 +61,23 @@ export class FirebaseService {
     } catch (error) {
       this.logger.error('Failed to initialize Firebase', error);
     }
+  }
+
+  private resolveServiceAccountPath(serviceAccountPath: string): string | null {
+    const normalizedInput = serviceAccountPath.trim();
+    const candidates = [
+      normalizedInput,
+      path.resolve(process.cwd(), normalizedInput),
+      path.resolve(process.cwd(), '..', normalizedInput),
+    ];
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -84,8 +118,12 @@ export class FirebaseService {
         token: params.fcm_token,
       };
 
-      const response = await this.firebase.messaging().send(message as admin.messaging.Message);
-      this.logger.log(`Push notification sent to user ${params.user_id}: ${response}`);
+      const response = await this.firebase
+        .messaging()
+        .send(message as admin.messaging.Message);
+      this.logger.log(
+        `Push notification sent to user ${params.user_id}: ${response}`,
+      );
       return response;
     } catch (error) {
       this.logger.error(`Failed to send push to ${params.user_id}`, error);
@@ -98,7 +136,9 @@ export class FirebaseService {
    */
   async sendMulticast(params: SendPushParams & { fcm_tokens: string[] }) {
     if (!this.firebase || params.fcm_tokens.length === 0) {
-      this.logger.warn('Firebase not initialized or no tokens. Skipping multicast.');
+      this.logger.warn(
+        'Firebase not initialized or no tokens. Skipping multicast.',
+      );
       return null;
     }
 
@@ -131,14 +171,23 @@ export class FirebaseService {
       };
 
       const sendPromises = params.fcm_tokens.map((token) =>
-        this.firebase!.messaging().send({ ...message, token } as admin.messaging.Message),
+        this.firebase!.messaging().send({
+          ...message,
+          token,
+        } as admin.messaging.Message),
       );
 
       const responses = await Promise.allSettled(sendPromises);
-      const successCount = responses.filter((r) => r.status === 'fulfilled').length;
-      const failureCount = responses.filter((r) => r.status === 'rejected').length;
+      const successCount = responses.filter(
+        (r) => r.status === 'fulfilled',
+      ).length;
+      const failureCount = responses.filter(
+        (r) => r.status === 'rejected',
+      ).length;
 
-      this.logger.log(`Multicast sent to ${params.user_id}: success=${successCount}, failed=${failureCount}`);
+      this.logger.log(
+        `Multicast sent to ${params.user_id}: success=${successCount}, failed=${failureCount}`,
+      );
       return { successCount, failureCount };
     } catch (error) {
       this.logger.error(`Failed to send multicast to ${params.user_id}`, error);
@@ -155,8 +204,12 @@ export class FirebaseService {
     }
 
     try {
-      const response = await this.firebase.messaging().subscribeToTopic(fcm_tokens, topic);
-      this.logger.log(`Subscribed ${fcm_tokens.length} devices to topic: ${topic}`);
+      const response = await this.firebase
+        .messaging()
+        .subscribeToTopic(fcm_tokens, topic);
+      this.logger.log(
+        `Subscribed ${fcm_tokens.length} devices to topic: ${topic}`,
+      );
       return response;
     } catch (error) {
       this.logger.error(`Failed to subscribe to topic ${topic}`, error);
@@ -167,14 +220,21 @@ export class FirebaseService {
   /**
    * Unsubscribe device tokens from a topic
    */
-  async unsubscribeFromTopic(fcm_tokens: string[], topic: string): Promise<any> {
+  async unsubscribeFromTopic(
+    fcm_tokens: string[],
+    topic: string,
+  ): Promise<any> {
     if (!this.firebase || fcm_tokens.length === 0) {
       return null;
     }
 
     try {
-      const response = await this.firebase.messaging().unsubscribeFromTopic(fcm_tokens, topic);
-      this.logger.log(`Unsubscribed ${fcm_tokens.length} devices from topic: ${topic}`);
+      const response = await this.firebase
+        .messaging()
+        .unsubscribeFromTopic(fcm_tokens, topic);
+      this.logger.log(
+        `Unsubscribed ${fcm_tokens.length} devices from topic: ${topic}`,
+      );
       return response;
     } catch (error) {
       this.logger.error(`Failed to unsubscribe from topic ${topic}`, error);
@@ -185,9 +245,16 @@ export class FirebaseService {
   /**
    * Send notification to topic
    */
-  async sendToTopic(title: string, body: string, topic: string, data?: Record<string, string>) {
+  async sendToTopic(
+    title: string,
+    body: string,
+    topic: string,
+    data?: Record<string, string>,
+  ) {
     if (!this.firebase) {
-      this.logger.warn('Firebase not initialized. Skipping topic notification.');
+      this.logger.warn(
+        'Firebase not initialized. Skipping topic notification.',
+      );
       return null;
     }
 
@@ -216,7 +283,9 @@ export class FirebaseService {
         topic,
       };
 
-      const response = await this.firebase.messaging().send(message as admin.messaging.Message);
+      const response = await this.firebase
+        .messaging()
+        .send(message as admin.messaging.Message);
       this.logger.log(`Notification sent to topic ${topic}: ${response}`);
       return response;
     } catch (error) {

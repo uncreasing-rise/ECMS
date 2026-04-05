@@ -1,9 +1,20 @@
-import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import * as crypto from 'node:crypto';
 
 type RedisBackend = {
-  set(key: string, value: string, mode?: 'EX', ttlSeconds?: number): Promise<unknown>;
+  set(
+    key: string,
+    value: string,
+    mode?: 'EX',
+    ttlSeconds?: number,
+  ): Promise<unknown>;
   get(key: string): Promise<string | null>;
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
@@ -11,10 +22,19 @@ type RedisBackend = {
   quit(): Promise<unknown>;
 };
 
+interface UpstashResponse {
+  result?: unknown;
+}
+
 class IoRedisClientAdapter implements RedisBackend {
   constructor(private readonly redis: Redis) {}
 
-  async set(key: string, value: string, mode?: 'EX', ttlSeconds?: number): Promise<unknown> {
+  async set(
+    key: string,
+    value: string,
+    mode?: 'EX',
+    ttlSeconds?: number,
+  ): Promise<unknown> {
     if (mode === 'EX' && ttlSeconds) {
       return this.redis.set(key, value, mode, ttlSeconds);
     }
@@ -48,7 +68,7 @@ class UpstashRestClient implements RedisBackend {
     private readonly token: string,
   ) {}
 
-  private async call(path: string): Promise<any> {
+  private async call(path: string): Promise<UpstashResponse> {
     const response = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: {
@@ -57,23 +77,32 @@ class UpstashRestClient implements RedisBackend {
     });
 
     if (!response.ok) {
-      throw new Error(`Upstash request failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Upstash request failed: ${response.status} ${response.statusText}`,
+      );
     }
 
-    return response.json();
+    return response.json() as Promise<UpstashResponse>;
   }
 
-  async set(key: string, value: string, mode?: 'EX', ttlSeconds?: number): Promise<unknown> {
+  async set(
+    key: string,
+    value: string,
+    mode?: 'EX',
+    ttlSeconds?: number,
+  ): Promise<unknown> {
     const encodedKey = encodeURIComponent(key);
     const encodedValue = encodeURIComponent(value);
     const exParam = mode === 'EX' && ttlSeconds ? `?EX=${ttlSeconds}` : '';
-    const data = await this.call(`/set/${encodedKey}/${encodedValue}${exParam}`);
+    const data = await this.call(
+      `/set/${encodedKey}/${encodedValue}${exParam}`,
+    );
     return data?.result;
   }
 
   async get(key: string): Promise<string | null> {
     const data = await this.call(`/get/${encodeURIComponent(key)}`);
-    return data?.result ?? null;
+    return typeof data.result === 'string' ? data.result : null;
   }
 
   async del(key: string): Promise<number> {
@@ -87,7 +116,9 @@ class UpstashRestClient implements RedisBackend {
   }
 
   async expire(key: string, ttlSeconds: number): Promise<number> {
-    const data = await this.call(`/expire/${encodeURIComponent(key)}/${ttlSeconds}`);
+    const data = await this.call(
+      `/expire/${encodeURIComponent(key)}/${ttlSeconds}`,
+    );
     return Number(data?.result ?? 0);
   }
 
@@ -126,7 +157,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    throw new Error('Missing Redis config: set REDIS_URL or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN');
+    throw new Error(
+      'Missing Redis config: set REDIS_URL or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN',
+    );
   }
 
   async onModuleDestroy() {
@@ -145,7 +178,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // ─── OTP / Verify Token ───────────────────────
   async setVerifyToken(userId: string, token: string, ttlSeconds = 86400) {
-    await this.client.set(`verify:${userId}`, token, 'EX', ttlSeconds);
+    await this.client.set(
+      `verify:${userId}`,
+      this.hashToken(token),
+      'EX',
+      ttlSeconds,
+    );
   }
 
   async getVerifyToken(userId: string): Promise<string | null> {
@@ -158,7 +196,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // ─── Reset Password Token ─────────────────────
   async setResetToken(userId: string, token: string, ttlSeconds = 3600) {
-    await this.client.set(`reset:${userId}`, token, 'EX', ttlSeconds);
+    await this.client.set(
+      `reset:${userId}`,
+      this.hashToken(token),
+      'EX',
+      ttlSeconds,
+    );
   }
 
   async getResetToken(userId: string): Promise<string | null> {
@@ -196,5 +239,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async hasResendCooldown(userId: string): Promise<boolean> {
     const val = await this.client.get(`resend_cooldown:${userId}`);
     return val === '1';
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
   }
 }

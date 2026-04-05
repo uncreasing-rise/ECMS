@@ -1,7 +1,12 @@
 import {
-  IsEmail, IsString, MinLength,
-  MaxLength, IsOptional, IsDateString,
-  IsIn, Matches,
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  IsOptional,
+  IsDateString,
+  IsIn,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -15,7 +20,12 @@ export class RegisterDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: 'StrongPass@123', minLength: 8, description: 'Must contain uppercase, lowercase, digit, and special character' })
+  @ApiProperty({
+    example: 'StrongPass@123',
+    minLength: 8,
+    description:
+      'Must contain uppercase, lowercase, digit, and special character',
+  })
   @IsString()
   @MinLength(8)
   @MaxLength(50)

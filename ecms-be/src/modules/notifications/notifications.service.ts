@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
 import { DeviceTokensService } from '../../common/device-tokens/device-tokens.service';
@@ -51,7 +52,6 @@ export class NotificationsService {
       },
     });
 
-    // Send push notification
     await this.sendPushNotification(params.user_id, params.title, params.body, {
       type: params.type,
       ref_type: params.ref_type,
@@ -118,7 +118,10 @@ export class NotificationsService {
       }
     } catch (error) {
       // Log error but don't throw - push is optional, DB notification is primary
-      console.error(`Failed to send push notification to user ${user_id}:`, error);
+      console.error(
+        `Failed to send push notification to user ${user_id}:`,
+        error,
+      );
     }
   }
 
@@ -132,7 +135,7 @@ export class NotificationsService {
       unread_only = false,
     } = params;
 
-    const where: any = { user_id };
+    const where: Prisma.notificationsWhereInput = { user_id };
 
     if (ref_type) {
       where.ref_type = ref_type;
@@ -209,7 +212,7 @@ export class NotificationsService {
 
   // ─── Delete Notification ──────────────────────
   async delete(id: string, user_id: string) {
-    const notification = await this.getNotification(id, user_id);
+    await this.getNotification(id, user_id);
 
     await this.prisma.notifications.delete({
       where: { id },
@@ -241,21 +244,16 @@ export class NotificationsService {
 
   // ─── Bulk Create Notifications ────────────────
   async createBulk(params: CreateNotificationParams[]) {
-    const notifications = await this.prisma.notifications.createMany({
-      data: params.map((p) => ({
-        id: randomUUID(),
-        user_id: p.user_id,
-        type: p.type,
-        title: p.title,
-        body: p.body,
-        ref_type: p.ref_type,
-        ref_id: p.ref_id,
-        created_at: new Date(),
-      })),
-      skipDuplicates: true,
-    });
+    if (!params.length) {
+      return { count: 0 };
+    }
 
-    return { count: notifications.count };
+    const settled = await Promise.allSettled(params.map((p) => this.create(p)));
+    const successCount = settled.filter(
+      (it) => it.status === 'fulfilled',
+    ).length;
+
+    return { count: successCount };
   }
 
   // ─── Delete Old Notifications (Cleanup) ───────
