@@ -7,6 +7,7 @@ describe('ClassesService facade', () => {
   };
   const schedules = {
     getClassSchedules: jest.fn(),
+    getClassCalendar: jest.fn(),
   };
   const assignments = {
     createAssignment: jest.fn(),
@@ -38,6 +39,13 @@ describe('ClassesService facade', () => {
   it('delegates getClassSchedules to schedules domain service', async () => {
     await service.getClassSchedules('c1', 'u1');
     expect(schedules.getClassSchedules).toHaveBeenCalledWith('c1', 'u1');
+  });
+
+  it('delegates getClassCalendar to schedules domain service', async () => {
+    await service.getClassCalendar({ actorId: 'u1' } as never);
+    expect(schedules.getClassCalendar).toHaveBeenCalledWith({
+      actorId: 'u1',
+    });
   });
 
   it('delegates createAssignment to assignments domain service', async () => {

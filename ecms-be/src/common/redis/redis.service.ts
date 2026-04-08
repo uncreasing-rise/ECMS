@@ -241,6 +241,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return val === '1';
   }
 
+  // ─── Generic Cache Helpers ───────────────────
+  async cacheSet(key: string, value: string, ttlSeconds = 60) {
+    await this.client.set(key, value, 'EX', ttlSeconds);
+  }
+
+  async cacheGet(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  async cacheDel(key: string) {
+    await this.client.del(key);
+  }
+
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
   }

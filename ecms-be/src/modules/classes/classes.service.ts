@@ -103,6 +103,12 @@ export class ClassesService {
     return this.schedules.deleteClassSchedule(...args);
   }
 
+  getClassCalendar(
+    ...args: Parameters<ClassesSchedulesService['getClassCalendar']>
+  ) {
+    return this.schedules.getClassCalendar(...args);
+  }
+
   getClassAssignments(
     ...args: Parameters<ClassesAssignmentsService['getClassAssignments']>
   ) {

@@ -33,6 +33,7 @@ import {
   type GetClassStudentsParams,
   type GetClassesParams,
 } from './contracts/classes-lifecycle.contract.js';
+import { InvoicesService } from '../invoices/invoices.service.js';
 
 interface EffectiveBlueprintSection {
   name: string;
@@ -73,6 +74,8 @@ export class ClassesCoreService {
     @Optional()
     @Inject(CLASS_NOTIFICATION_PUBLISHER)
     private readonly notificationsService?: ClassNotificationPublisher,
+    @Optional()
+    private readonly invoicesService?: InvoicesService,
   ) {}
 
   async createClass(dto: CreateClassDto, actorId: string) {
@@ -638,7 +641,7 @@ export class ClassesCoreService {
     const [classItem, student] = await Promise.all([
       this.prisma.classes.findUnique({
         where: { id: classId },
-        select: { id: true },
+        select: { id: true, max_students: true },
       }),
       this.prisma.users.findUnique({
         where: { id: dto.student_id },
@@ -653,6 +656,8 @@ export class ClassesCoreService {
       throw new BadRequestException('student_id không tồn tại');
     }
 
+    const targetStatus = dto.status ?? 'active';
+
     const existing = await this.prisma.enrollments.findFirst({
       where: { class_id: classId, student_id: dto.student_id },
       select: { id: true, status: true },
@@ -662,11 +667,60 @@ export class ClassesCoreService {
       throw new ConflictException('Học viên đã nằm trong lớp');
     }
 
+    if (targetStatus === 'active') {
+      if (
+        classItem.max_students !== null &&
+        classItem.max_students !== undefined
+      ) {
+        const activeCount = await this.prisma.enrollments.count({
+          where: { class_id: classId, status: 'active' },
+        });
+
+        if (activeCount >= classItem.max_students) {
+          throw new ConflictException('Lớp học đã đủ sĩ số');
+        }
+      }
+
+      const classSchedules = await this.prisma.class_schedules.findMany({
+        where: { class_id: classId },
+        select: { starts_at: true, ends_at: true },
+      });
+
+      if (classSchedules.length) {
+        const studentSchedules = await this.prisma.class_schedules.findMany({
+          where: {
+            class_id: { not: classId },
+            classes: {
+              enrollments: {
+                some: {
+                  student_id: dto.student_id,
+                  status: 'active',
+                },
+              },
+            },
+          },
+          select: { starts_at: true, ends_at: true },
+        });
+
+        const hasConflict = classSchedules.some((candidate) =>
+          studentSchedules.some(
+            (existingSchedule) =>
+              candidate.starts_at < existingSchedule.ends_at &&
+              candidate.ends_at > existingSchedule.starts_at,
+          ),
+        );
+
+        if (hasConflict) {
+          throw new ConflictException('Học viên bị trùng lịch học');
+        }
+      }
+    }
+
     if (existing) {
       const updated = await this.prisma.enrollments.update({
         where: { id: existing.id },
         data: {
-          status: dto.status ?? 'active',
+          status: targetStatus,
           enrolled_at: new Date(),
         },
       });
@@ -690,7 +744,7 @@ export class ClassesCoreService {
         id: randomUUID(),
         class_id: classId,
         student_id: dto.student_id,
-        status: dto.status ?? 'active',
+        status: targetStatus,
         enrolled_at: new Date(),
       },
     });
@@ -704,6 +758,28 @@ export class ClassesCoreService {
         ref_type: 'class',
         ref_id: classId,
       });
+    }
+
+    // FR-ECM-020: Auto-create invoice when student enrolls with active status
+    if (created.status === 'active' && this.invoicesService) {
+      try {
+        const coursePrice = await this.prisma.classes
+          .findUnique({
+            where: { id: classId },
+            select: { courses: { select: { price: true } } },
+          })
+          .then((c) => c?.courses.price);
+
+        if (coursePrice && Number(coursePrice) > 0) {
+          await this.invoicesService.createInvoiceForEnrollment(
+            created.id,
+            coursePrice,
+          );
+        }
+      } catch (error) {
+        // Log but don't fail enrollment if invoice creation fails
+        console.error('Failed to create invoice for enrollment:', error);
+      }
     }
 
     return created;
@@ -864,21 +940,19 @@ export class ClassesCoreService {
             );
           }
 
-          for (const q of selected) {
-            const score = section.score_per_question ?? 1;
-            await tx.exam_questions.create({
-              data: {
-                id: randomUUID(),
-                exam_id: exam.id,
-                section_config_id: sectionConfig.id,
-                question_id: q.id,
-                order_index: orderCounter,
-                score,
-              },
-            });
-            orderCounter += 1;
-            totalScore += score;
-          }
+          const score = section.score_per_question ?? 1;
+          const examQuestionRows = selected.map((q, idx) => ({
+            id: randomUUID(),
+            exam_id: exam.id,
+            section_config_id: sectionConfig.id,
+            question_id: q.id,
+            order_index: orderCounter + idx,
+            score,
+          }));
+
+          await tx.exam_questions.createMany({ data: examQuestionRows });
+          orderCounter += examQuestionRows.length;
+          totalScore += score * examQuestionRows.length;
         }
       }
 
@@ -1106,7 +1180,7 @@ export class ClassesCoreService {
         device_info: (dto.device_info ??
           (dto.device_info_text
             ? { text: dto.device_info_text }
-            : undefined)) as any,
+            : undefined)) as Prisma.InputJsonValue,
       },
     });
 
@@ -1242,7 +1316,7 @@ export class ClassesCoreService {
           await tx.exam_answers.update({
             where: { id: existing.id },
             data: {
-              answer: item.answer as any,
+              answer: item.answer as Prisma.InputJsonValue,
               answered_at: new Date(),
             },
           });
@@ -1252,7 +1326,7 @@ export class ClassesCoreService {
               id: randomUUID(),
               session_id: sessionId,
               question_id: item.question_id,
-              answer: item.answer as any,
+              answer: item.answer as Prisma.InputJsonValue,
               answered_at: new Date(),
             },
           });

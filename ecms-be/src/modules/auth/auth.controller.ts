@@ -15,6 +15,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -65,8 +66,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Gửi lại email xác nhận' })
-  resendVerification(@Body('email') email: string, @Req() req: Request) {
-    return this.authService.resendVerification(email, req.ip ?? '');
+  resendVerification(
+    @Body() dto: ResendVerificationDto,
+    @Req() req: Request,
+  ) {
+    return this.authService.resendVerification(dto.email, req.ip ?? '');
   }
 
   @Public()

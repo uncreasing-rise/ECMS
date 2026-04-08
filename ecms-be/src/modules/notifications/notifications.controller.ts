@@ -85,7 +85,7 @@ export class NotificationsController {
   }
 
   // ─── Get Single Notification ──────────────────
-  @Get(':id')
+  @Get('id/:id')
   @ApiOperation({ summary: 'Lấy chi tiết thông báo' })
   getNotification(
     @Param('id') id: string,

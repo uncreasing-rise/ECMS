@@ -198,7 +198,10 @@ export class FirebaseService {
   /**
    * Subscribe device tokens to a topic
    */
-  async subscribeToTopic(fcm_tokens: string[], topic: string): Promise<any> {
+  async subscribeToTopic(
+    fcm_tokens: string[],
+    topic: string,
+  ): Promise<admin.messaging.MessagingTopicManagementResponse | null> {
     if (!this.firebase || fcm_tokens.length === 0) {
       return null;
     }
@@ -223,7 +226,7 @@ export class FirebaseService {
   async unsubscribeFromTopic(
     fcm_tokens: string[],
     topic: string,
-  ): Promise<any> {
+  ): Promise<admin.messaging.MessagingTopicManagementResponse | null> {
     if (!this.firebase || fcm_tokens.length === 0) {
       return null;
     }

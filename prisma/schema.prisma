@@ -446,14 +446,14 @@ model grades {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model invoices {
-  id            String      @id @db.Uuid
-  enrollment_id String      @db.Uuid
-  amount        Decimal     @db.Decimal(12, 2)
-  paid_amount   Decimal?    @default(0) @db.Decimal(12, 2)
-  due_date      DateTime?   @db.Date
-  status        String?     @db.VarChar(20)
-  created_at    DateTime?   @db.Timestamp(6)
-  enrollments   enrollments @relation(fields: [enrollment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id            String       @id @db.Uuid
+  enrollment_id String       @db.Uuid
+  amount        Decimal      @db.Decimal(12, 2)
+  paid_amount   Decimal?     @default(0) @db.Decimal(12, 2)
+  due_date      DateTime?    @db.Date
+  status        String?      @db.VarChar(20)
+  created_at    DateTime?    @db.Timestamp(6)
+  enrollments   enrollments  @relation(fields: [enrollment_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments      payments[]
 }
 

@@ -13,6 +13,12 @@ import { CoursesModule } from './modules/courses/courses.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { StudentsModule } from './modules/students/students.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { AttendancesModule } from './modules/attendances/attendances.module';
+import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { ExamsModule } from './modules/exams/exams.module';
+import { PortalModule } from './modules/portal/portal.module';
 
 @Module({
   imports: [
@@ -32,6 +38,12 @@ import { StudentsModule } from './modules/students/students.module';
     ClassesModule,
     NotificationsModule,
     StudentsModule,
+    InvoicesModule,
+    AuditLogsModule,
+    AttendancesModule,
+    AssignmentsModule,
+    ExamsModule,
+    PortalModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

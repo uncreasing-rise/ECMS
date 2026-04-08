@@ -41,6 +41,7 @@ import { UpdateBlueprintTemplateDto } from './dto/update-blueprint-template.dto'
 import { CreateBlueprintSectionDto } from './dto/create-blueprint-section.dto';
 import { UpdateBlueprintSectionDto } from './dto/update-blueprint-section.dto';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { OptionalDatePipe } from '../../common/pipes/date-query.pipe.js';
 
 @ApiTags('Classes')
 @Controller('classes')
@@ -192,7 +193,7 @@ export class ClassesController {
     return this.classesService.deleteBlueprintSection(templateId, sectionId);
   }
 
-  @Get(':id')
+  @Get('class/:id')
   @ApiOperation({ summary: 'Lấy chi tiết lớp học' })
   getClassById(
     @Param('id') id: string,
@@ -201,7 +202,7 @@ export class ClassesController {
     return this.classesService.getClassById(id, user.id);
   }
 
-  @Get(':id/students')
+  @Get('class/:id/students')
   @ApiOperation({ summary: 'Lấy danh sách học viên của lớp' })
   @ApiQuery({ name: 'status', required: false, type: String })
   @ApiQuery({ name: 'skip', required: false, type: Number })
@@ -222,7 +223,7 @@ export class ClassesController {
     });
   }
 
-  @Get(':id/resources')
+  @Get('class/:id/resources')
   @ApiOperation({ summary: 'Lấy tài nguyên lớp học' })
   getClassResources(
     @Param('id') classId: string,
@@ -231,7 +232,7 @@ export class ClassesController {
     return this.classesService.getClassResources(classId, user.id);
   }
 
-  @Post(':id/resources')
+  @Post('class/:id/resources')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.CREATED)
@@ -244,7 +245,7 @@ export class ClassesController {
     return this.classesService.createClassResource(classId, dto, user.id);
   }
 
-  @Get(':id/assignments')
+  @Get('class/:id/assignments')
   @ApiOperation({ summary: 'Lấy danh sách assignment của lớp' })
   getClassAssignments(
     @Param('id') classId: string,
@@ -253,7 +254,7 @@ export class ClassesController {
     return this.classesService.getClassAssignments(classId, user.id);
   }
 
-  @Post(':id/assignments')
+  @Post('class/:id/assignments')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.CREATED)
@@ -266,7 +267,7 @@ export class ClassesController {
     return this.classesService.createAssignment(classId, dto, user.id);
   }
 
-  @Get(':id/assignments/:assignmentId/submissions')
+  @Get('class/:id/assignments/:assignmentId/submissions')
   @ApiOperation({ summary: 'Lấy danh sách bài nộp assignment' })
   getAssignmentSubmissions(
     @Param('id') classId: string,
@@ -280,7 +281,7 @@ export class ClassesController {
     );
   }
 
-  @Post(':id/assignments/:assignmentId/submissions')
+  @Post('class/:id/assignments/:assignmentId/submissions')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Học viên nộp bài assignment' })
   submitAssignment(
@@ -297,7 +298,7 @@ export class ClassesController {
     );
   }
 
-  @Patch(':id/assignments/:assignmentId/submissions/:submissionId/grade')
+  @Patch('class/:id/assignments/:assignmentId/submissions/:submissionId/grade')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -318,7 +319,7 @@ export class ClassesController {
     );
   }
 
-  @Get(':id/schedules')
+  @Get('class/:id/schedules')
   @ApiOperation({ summary: 'Lấy lịch học của lớp' })
   @ApiQuery({
     name: 'from',
@@ -335,13 +336,13 @@ export class ClassesController {
   getClassSchedules(
     @Param('id') classId: string,
     @CurrentUser() user: AuthenticatedUser,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('from', new OptionalDatePipe('from')) from?: Date,
+    @Query('to', new OptionalDatePipe('to')) to?: Date,
   ) {
     return this.classesService.getClassSchedules(classId, user.id, from, to);
   }
 
-  @Get(':id/schedules/:scheduleId/attendance')
+  @Get('class/:id/schedules/:scheduleId/attendance')
   @ApiOperation({ summary: 'Lấy điểm danh theo slot học' })
   getScheduleAttendance(
     @Param('id') classId: string,
@@ -355,7 +356,7 @@ export class ClassesController {
     );
   }
 
-  @Post(':id/schedules/:scheduleId/attendance')
+  @Post('class/:id/schedules/:scheduleId/attendance')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -374,7 +375,7 @@ export class ClassesController {
     );
   }
 
-  @Post(':id/schedules')
+  @Post('class/:id/schedules')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.CREATED)
@@ -387,7 +388,7 @@ export class ClassesController {
     return this.classesService.createClassSchedule(classId, dto, user.id);
   }
 
-  @Patch(':id/schedules/:scheduleId')
+  @Patch('class/:id/schedules/:scheduleId')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -406,7 +407,7 @@ export class ClassesController {
     );
   }
 
-  @Delete(':id/schedules/:scheduleId')
+  @Delete('class/:id/schedules/:scheduleId')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -423,7 +424,40 @@ export class ClassesController {
     );
   }
 
-  @Post(':id/enrollments')
+  @Get('calendar')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin', 'teacher')
+  @ApiOperation({ summary: 'Calendar view lịch học theo tuần/tháng' })
+  @ApiQuery({ name: 'view', required: false, type: String })
+  @ApiQuery({ name: 'date', required: false, type: String })
+  @ApiQuery({ name: 'from', required: false, type: String })
+  @ApiQuery({ name: 'to', required: false, type: String })
+  @ApiQuery({ name: 'class_id', required: false, type: String })
+  @ApiQuery({ name: 'teacher_id', required: false, type: String })
+  @ApiQuery({ name: 'room_id', required: false, type: String })
+  getCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('view') view?: 'week' | 'month',
+    @Query('date', new OptionalDatePipe('date')) date?: Date,
+    @Query('from', new OptionalDatePipe('from')) from?: Date,
+    @Query('to', new OptionalDatePipe('to')) to?: Date,
+    @Query('class_id') classId?: string,
+    @Query('teacher_id') teacherId?: string,
+    @Query('room_id') roomId?: string,
+  ) {
+    return this.classesService.getClassCalendar({
+      actorId: user.id,
+      view,
+      date,
+      from,
+      to,
+      classId,
+      teacherId,
+      roomId,
+    });
+  }
+
+  @Post('class/:id/enrollments')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.CREATED)
@@ -432,7 +466,7 @@ export class ClassesController {
     return this.classesService.enrollStudent(classId, dto);
   }
 
-  @Get(':id/tests')
+  @Get('class/:id/tests')
   @ApiOperation({ summary: 'Lấy danh sách bài kiểm tra của lớp' })
   getClassTests(
     @Param('id') classId: string,
@@ -441,7 +475,7 @@ export class ClassesController {
     return this.classesService.getClassTests(classId, user.id);
   }
 
-  @Post(':id/tests')
+  @Post('class/:id/tests')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.CREATED)
@@ -456,7 +490,7 @@ export class ClassesController {
     return this.classesService.createClassTest(classId, dto, user.id);
   }
 
-  @Get(':id/tests/:examId/my-attempts')
+  @Get('class/:id/tests/:examId/my-attempts')
   @ApiOperation({ summary: 'Lấy danh sách attempt của học viên hiện tại' })
   getMyExamAttempts(
     @Param('id') classId: string,
@@ -466,7 +500,7 @@ export class ClassesController {
     return this.classesService.getMyExamAttempts(classId, examId, user.id);
   }
 
-  @Post(':id/tests/:examId/attempts/start')
+  @Post('class/:id/tests/:examId/attempts/start')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Bắt đầu 1 attempt làm bài thi' })
   startExamAttempt(
@@ -478,7 +512,7 @@ export class ClassesController {
     return this.classesService.startExamAttempt(classId, examId, user.id, dto);
   }
 
-  @Post(':id/tests/:examId/attempts/:sessionId/answers')
+  @Post('class/:id/tests/:examId/attempts/:sessionId/answers')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Lưu câu trả lời trong attempt' })
   upsertExamAnswers(
@@ -497,7 +531,7 @@ export class ClassesController {
     );
   }
 
-  @Post(':id/tests/:examId/attempts/:sessionId/submit')
+  @Post('class/:id/tests/:examId/attempts/:sessionId/submit')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Nộp bài thi và auto chấm' })
   submitExamAttempt(
@@ -516,7 +550,7 @@ export class ClassesController {
     );
   }
 
-  @Get(':id/tests/:examId/attempts/:sessionId')
+  @Get('class/:id/tests/:examId/attempts/:sessionId')
   @ApiOperation({ summary: 'Lấy chi tiết attempt + answers + điểm' })
   getExamAttemptDetail(
     @Param('id') classId: string,
@@ -532,7 +566,7 @@ export class ClassesController {
     );
   }
 
-  @Delete(':id/enrollments/:studentId')
+  @Delete('class/:id/enrollments/:studentId')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -544,7 +578,7 @@ export class ClassesController {
     return this.classesService.unenrollStudent(classId, studentId);
   }
 
-  @Patch(':id')
+  @Patch('class/:id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin', 'teacher')
   @HttpCode(HttpStatus.OK)
@@ -557,7 +591,7 @@ export class ClassesController {
     return this.classesService.updateClass(classId, dto, user.id);
   }
 
-  @Delete(':id')
+  @Delete('class/:id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.OK)

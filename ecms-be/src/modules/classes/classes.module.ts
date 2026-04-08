@@ -3,6 +3,7 @@ import { ClassesController } from './classes.controller.js';
 import { ClassesService } from './classes.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { InvoicesModule } from '../invoices/invoices.module.js';
 import { ClassesCoreService } from './classes.core.service.js';
 import { ClassesLifecycleService } from './services/classes-lifecycle.service.js';
 import { ClassesSchedulesService } from './services/classes-schedules.service.js';
@@ -15,7 +16,7 @@ import {
 } from './contracts/class-notification.publisher.js';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, InvoicesModule],
   controllers: [ClassesController],
   providers: [
     ClassesCoreService,

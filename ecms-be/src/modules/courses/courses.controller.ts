@@ -1,7 +1,28 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthGuard } from '../auth/guards/auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CoursesService } from './courses.service.js';
+import { CreateCourseDto } from './dto/create-course.dto.js';
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 
 @ApiTags('Courses')
 @Controller('courses')
@@ -28,6 +49,33 @@ export class CoursesController {
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 20,
     });
+  }
+
+  @Post()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Tạo template khóa học' })
+  createCourse(@Body() dto: CreateCourseDto) {
+    return this.coursesService.createCourse(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cập nhật template khóa học' })
+  updateCourse(@Param('id') courseId: string, @Body() dto: UpdateCourseDto) {
+    return this.coursesService.updateCourse(courseId, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xóa template khóa học (soft delete)' })
+  deleteCourse(@Param('id') courseId: string) {
+    return this.coursesService.deleteCourse(courseId);
   }
 
   @Get(':id')

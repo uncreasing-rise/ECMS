@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -7,6 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
 import { RecordAttendanceDto } from '../dto/record-attendance.dto.js';
 import { CreateClassScheduleDto } from '../dto/create-class-schedule.dto.js';
@@ -15,6 +17,17 @@ import {
   CLASS_NOTIFICATION_PUBLISHER,
   type ClassNotificationPublisher,
 } from '../contracts/class-notification.publisher.js';
+
+interface GetClassCalendarParams {
+  actorId: string;
+  view?: 'week' | 'month';
+  date?: Date;
+  from?: Date;
+  to?: Date;
+  classId?: string;
+  teacherId?: string;
+  roomId?: string;
+}
 
 @Injectable()
 export class ClassesSchedulesService {
@@ -28,8 +41,8 @@ export class ClassesSchedulesService {
   async getClassSchedules(
     classId: string,
     actorId: string,
-    from?: string,
-    to?: string,
+    from?: Date,
+    to?: Date,
   ) {
     await this.ensureCanViewClass(classId, actorId);
 
@@ -41,13 +54,10 @@ export class ClassesSchedulesService {
       };
     } = { class_id: classId };
 
-    const fromDate = from ? new Date(from) : null;
-    const toDate = to ? new Date(to) : null;
-
-    if (fromDate || toDate) {
+    if (from || to) {
       where.starts_at = {};
-      if (fromDate) where.starts_at.gte = fromDate;
-      if (toDate) where.starts_at.lte = toDate;
+      if (from) where.starts_at.gte = from;
+      if (to) where.starts_at.lte = to;
     }
 
     return this.prisma.class_schedules.findMany({
@@ -57,6 +67,84 @@ export class ClassesSchedulesService {
         rooms: true,
       },
     });
+  }
+
+  async getClassCalendar(params: GetClassCalendarParams) {
+    const isAdmin = await this.hasRole(params.actorId, 'admin');
+    const isTeacher = await this.hasRole(params.actorId, 'teacher');
+
+    if (!isAdmin && !isTeacher) {
+      throw new ForbiddenException('Bạn không có quyền truy cập lớp học này');
+    }
+
+    const range = this.resolveCalendarRange(
+      params.view,
+      params.date,
+      params.from,
+      params.to,
+    );
+
+    const where: Prisma.class_schedulesWhereInput = {
+      starts_at: { lt: range.end },
+      ends_at: { gt: range.start },
+    };
+
+    if (!isAdmin) {
+      where.classes = { teacher_id: params.actorId };
+    }
+
+    if (params.classId) {
+      where.class_id = params.classId;
+    }
+
+    if (params.teacherId) {
+      where.classes = {
+        ...(where.classes ?? {}),
+        teacher_id: params.teacherId,
+      } as Prisma.classesWhereInput;
+    }
+
+    if (params.roomId) {
+      where.room_id = params.roomId;
+    }
+
+    const data = await this.prisma.class_schedules.findMany({
+      where,
+      orderBy: [{ starts_at: 'asc' }, { ends_at: 'asc' }],
+      include: {
+        rooms: true,
+        classes: {
+          include: {
+            courses: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                level: true,
+                total_sessions: true,
+                price: true,
+                is_active: true,
+                created_at: true,
+              },
+            },
+            users: {
+              select: {
+                id: true,
+                full_name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      view: params.view ?? 'month',
+      range,
+      total: data.length,
+      data,
+    };
   }
 
   async getScheduleAttendance(
@@ -213,6 +301,23 @@ export class ClassesSchedulesService {
       throw new BadRequestException('starts_at phai nho hon ends_at');
     }
 
+    const classItem = await this.prisma.classes.findUnique({
+      where: { id: classId },
+      select: { id: true, teacher_id: true },
+    });
+
+    if (!classItem) {
+      throw new NotFoundException('Không tìm thấy lớp học');
+    }
+
+    await this.ensureNoScheduleConflict({
+      classId,
+      teacherId: classItem.teacher_id,
+      roomId: dto.room_id,
+      startsAt,
+      endsAt,
+    });
+
     const created = await this.prisma.class_schedules.create({
       data: {
         id: randomUUID(),
@@ -250,10 +355,19 @@ export class ClassesSchedulesService {
 
     const existing = await this.prisma.class_schedules.findFirst({
       where: { id: scheduleId, class_id: classId },
-      select: { id: true, starts_at: true, ends_at: true },
+      select: { id: true, room_id: true, starts_at: true, ends_at: true },
     });
     if (!existing) {
       throw new NotFoundException('Khong tim thay lich hoc');
+    }
+
+    const classItem = await this.prisma.classes.findUnique({
+      where: { id: classId },
+      select: { id: true, teacher_id: true },
+    });
+
+    if (!classItem) {
+      throw new NotFoundException('Khong tim thay lop hoc');
     }
 
     if (dto.room_id !== undefined && dto.room_id !== null) {
@@ -273,6 +387,18 @@ export class ClassesSchedulesService {
     if (newStartsAt >= newEndsAt) {
       throw new BadRequestException('starts_at phai nho hon ends_at');
     }
+
+    await this.ensureNoScheduleConflict({
+      classId,
+      teacherId: classItem.teacher_id,
+      roomId:
+        dto.room_id === undefined
+          ? (existing.room_id ?? undefined)
+          : dto.room_id,
+      startsAt: newStartsAt,
+      endsAt: newEndsAt,
+      excludeScheduleId: scheduleId,
+    });
 
     const updated = await this.prisma.class_schedules.update({
       where: { id: scheduleId },
@@ -419,6 +545,113 @@ export class ClassesSchedulesService {
     });
 
     return !!role;
+  }
+
+  private async ensureNoScheduleConflict(params: {
+    classId: string;
+    teacherId: string | null;
+    roomId?: string | null;
+    startsAt: Date;
+    endsAt: Date;
+    excludeScheduleId?: string;
+  }) {
+    const or: Prisma.class_schedulesWhereInput[] = [
+      { class_id: params.classId },
+    ];
+
+    if (params.roomId) {
+      or.push({ room_id: params.roomId });
+    }
+
+    if (params.teacherId) {
+      or.push({ classes: { teacher_id: params.teacherId } });
+    }
+
+    const conflicts = await this.prisma.class_schedules.findMany({
+      where: {
+        ...(params.excludeScheduleId
+          ? { id: { not: params.excludeScheduleId } }
+          : {}),
+        starts_at: { lt: params.endsAt },
+        ends_at: { gt: params.startsAt },
+        OR: or,
+      },
+      select: {
+        id: true,
+        class_id: true,
+        room_id: true,
+        starts_at: true,
+        ends_at: true,
+        classes: {
+          select: {
+            id: true,
+            name: true,
+            teacher_id: true,
+          },
+        },
+        rooms: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!conflicts.length) {
+      return;
+    }
+
+    const conflict = conflicts[0];
+    const conflictType =
+      conflict.room_id && params.roomId && conflict.room_id === params.roomId
+        ? 'phong hoc'
+        : conflict.classes?.teacher_id === params.teacherId
+          ? 'giao vien'
+          : 'lop hoc';
+
+    throw new ConflictException(
+      `Lich hoc bi trung ${conflictType} trong khoang thoi gian nay`,
+    );
+  }
+
+  private resolveCalendarRange(
+    view?: 'week' | 'month',
+    date?: Date,
+    from?: Date,
+    to?: Date,
+  ) {
+    const start = from ?? this.getCalendarStart(view, date);
+    const end = to ?? this.getCalendarEnd(view, start);
+
+    return { start, end };
+  }
+
+  private getCalendarStart(view?: 'week' | 'month', date?: Date) {
+    const anchor = date ? new Date(date) : new Date();
+
+    if (view === 'month') {
+      return new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    }
+
+    const start = new Date(anchor);
+    const day = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  }
+
+  private getCalendarEnd(view: 'week' | 'month' | undefined, start: Date) {
+    const end = new Date(start);
+
+    if (view === 'month') {
+      end.setMonth(end.getMonth() + 1);
+      end.setHours(0, 0, 0, 0);
+      return end;
+    }
+
+    end.setDate(end.getDate() + 7);
+    return end;
   }
 
   private async notifyClassStudents(
