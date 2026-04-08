@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUrl } from 'class-validator';
 
-export class SubmitAssignmentDto {
+export class ClassSubmitAssignmentDto {
   @ApiPropertyOptional({ example: 'Bài làm phần reading của em...' })
   @IsOptional()
   @IsString()

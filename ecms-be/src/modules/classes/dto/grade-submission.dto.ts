@@ -2,7 +2,7 @@ import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
-export class GradeSubmissionDto {
+export class ClassGradeSubmissionDto {
   @ApiProperty({ example: 8.5 })
   @Type(() => Number)
   @IsNumber()

@@ -10,7 +10,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
-import { RecordAttendanceDto } from '../dto/record-attendance.dto.js';
+import { ClassRecordAttendanceDto } from '../dto/record-attendance.dto.js';
 import { CreateClassScheduleDto } from '../dto/create-class-schedule.dto.js';
 import { UpdateClassScheduleDto } from '../dto/update-class-schedule.dto.js';
 import {
@@ -183,7 +183,7 @@ export class ClassesSchedulesService {
   async recordScheduleAttendance(
     classId: string,
     scheduleId: string,
-    dto: RecordAttendanceDto,
+    dto: ClassRecordAttendanceDto,
     actorId: string,
   ) {
     await this.ensureCanManageClass(

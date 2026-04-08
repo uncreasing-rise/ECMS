@@ -14,10 +14,10 @@ import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { EnrollStudentDto } from './dto/enroll-student.dto';
 import { CreateClassResourceDto } from './dto/create-class-resource.dto';
-import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { ClassCreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateClassTestDto } from './dto/create-class-test.dto';
-import { SubmitAssignmentDto } from './dto/submit-assignment.dto';
-import { GradeSubmissionDto } from './dto/grade-submission.dto';
+import { ClassSubmitAssignmentDto } from './dto/submit-assignment.dto';
+import { ClassGradeSubmissionDto } from './dto/grade-submission.dto';
 import { StartExamAttemptDto } from './dto/start-exam-attempt.dto';
 import { UpsertExamAnswerDto } from './dto/upsert-exam-answer.dto';
 import { SubmitExamAttemptDto } from './dto/submit-exam-attempt.dto';
@@ -367,7 +367,7 @@ export class ClassesCoreService {
 
   async createAssignment(
     classId: string,
-    dto: CreateAssignmentDto,
+    dto: ClassCreateAssignmentDto,
     actorId: string,
   ) {
     await this.ensureCanManageClass(
@@ -437,7 +437,7 @@ export class ClassesCoreService {
   async submitAssignment(
     classId: string,
     assignmentId: string,
-    dto: SubmitAssignmentDto,
+    dto: ClassSubmitAssignmentDto,
     studentId: string,
   ) {
     await this.ensureStudentEnrolledInClass(classId, studentId);
@@ -494,7 +494,7 @@ export class ClassesCoreService {
     classId: string,
     assignmentId: string,
     submissionId: string,
-    dto: GradeSubmissionDto,
+    dto: ClassGradeSubmissionDto,
     graderId: string,
   ) {
     await this.ensureCanManageClass(

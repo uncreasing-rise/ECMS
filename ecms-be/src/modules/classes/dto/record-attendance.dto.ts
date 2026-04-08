@@ -28,7 +28,7 @@ export class AttendanceItemDto {
   note?: string;
 }
 
-export class RecordAttendanceDto {
+export class ClassRecordAttendanceDto {
   @ApiProperty({ type: [AttendanceItemDto] })
   @IsArray()
   @ValidateNested({ each: true })

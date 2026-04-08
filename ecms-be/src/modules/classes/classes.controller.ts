@@ -28,11 +28,11 @@ import { CreateClassScheduleDto } from './dto/create-class-schedule.dto';
 import { UpdateClassScheduleDto } from './dto/update-class-schedule.dto';
 import { EnrollStudentDto } from './dto/enroll-student.dto';
 import { CreateClassResourceDto } from './dto/create-class-resource.dto';
-import { CreateAssignmentDto } from './dto/create-assignment.dto';
-import { RecordAttendanceDto } from './dto/record-attendance.dto';
+import { ClassCreateAssignmentDto } from './dto/create-assignment.dto';
+import { ClassRecordAttendanceDto } from './dto/record-attendance.dto';
 import { CreateClassTestDto } from './dto/create-class-test.dto';
-import { SubmitAssignmentDto } from './dto/submit-assignment.dto';
-import { GradeSubmissionDto } from './dto/grade-submission.dto';
+import { ClassSubmitAssignmentDto } from './dto/submit-assignment.dto';
+import { ClassGradeSubmissionDto } from './dto/grade-submission.dto';
 import { StartExamAttemptDto } from './dto/start-exam-attempt.dto';
 import { UpsertExamAnswerDto } from './dto/upsert-exam-answer.dto';
 import { SubmitExamAttemptDto } from './dto/submit-exam-attempt.dto';
@@ -261,7 +261,7 @@ export class ClassesController {
   @ApiOperation({ summary: 'Tạo assignment cho lớp (admin/teacher)' })
   createAssignment(
     @Param('id') classId: string,
-    @Body() dto: CreateAssignmentDto,
+    @Body() dto: ClassCreateAssignmentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.classesService.createAssignment(classId, dto, user.id);
@@ -287,7 +287,7 @@ export class ClassesController {
   submitAssignment(
     @Param('id') classId: string,
     @Param('assignmentId') assignmentId: string,
-    @Body() dto: SubmitAssignmentDto,
+    @Body() dto: ClassSubmitAssignmentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.classesService.submitAssignment(
@@ -307,7 +307,7 @@ export class ClassesController {
     @Param('id') classId: string,
     @Param('assignmentId') assignmentId: string,
     @Param('submissionId') submissionId: string,
-    @Body() dto: GradeSubmissionDto,
+    @Body() dto: ClassGradeSubmissionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.classesService.gradeAssignmentSubmission(
@@ -364,7 +364,7 @@ export class ClassesController {
   recordScheduleAttendance(
     @Param('id') classId: string,
     @Param('scheduleId') scheduleId: string,
-    @Body() dto: RecordAttendanceDto,
+    @Body() dto: ClassRecordAttendanceDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.classesService.recordScheduleAttendance(

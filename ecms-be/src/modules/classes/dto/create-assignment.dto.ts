@@ -10,7 +10,7 @@ import {
   Min,
 } from 'class-validator';
 
-export class CreateAssignmentDto {
+export class ClassCreateAssignmentDto {
   @ApiProperty({ example: 'Reading Homework 01' })
   @IsString()
   @MaxLength(200)
