@@ -664,6 +664,56 @@ model user_roles {
   @@unique([user_id, role_id], map: "user_roles_user_id_role_id_idx")
 }
 
+model chat_conversations {
+  id                   String                      @id @db.Uuid
+  type                 String                      @db.VarChar(20)
+  name                 String?                     @db.VarChar(120)
+  direct_fingerprint   String?                     @unique @db.VarChar(200)
+  created_by           String                      @db.Uuid
+  created_at           DateTime?                   @default(now()) @db.Timestamp(6)
+  updated_at           DateTime?                   @default(now()) @db.Timestamp(6)
+  last_message_at      DateTime?                   @db.Timestamp(6)
+  last_message_preview String?
+  users                users                       @relation("chat_conversations_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  chat_members         chat_conversation_members[]
+  chat_messages        chat_messages[]
+
+  @@index([created_by])
+  @@index([updated_at])
+  @@index([last_message_at])
+}
+
+model chat_conversation_members {
+  id                        String             @id @db.Uuid
+  conversation_id           String             @db.Uuid
+  user_id                   String             @db.Uuid
+  joined_at                 DateTime?          @default(now()) @db.Timestamp(6)
+  unread_count              Int?               @default(0)
+  last_delivered_message_id String?            @db.Uuid
+  last_delivered_at         DateTime?          @db.Timestamp(6)
+  last_read_message_id      String?            @db.Uuid
+  last_read_at              DateTime?          @db.Timestamp(6)
+  chat_conversations        chat_conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                     users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([conversation_id, user_id], map: "chat_conversation_members_conversation_id_user_id_idx")
+  @@index([user_id])
+  @@index([conversation_id])
+}
+
+model chat_messages {
+  id                 String             @id @db.Uuid
+  conversation_id    String             @db.Uuid
+  sender_id          String             @db.Uuid
+  content            String
+  created_at         DateTime?          @default(now()) @db.Timestamp(6)
+  chat_conversations chat_conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users              @relation("chat_messages_sender_idTousers", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([conversation_id, created_at])
+  @@index([sender_id])
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model users {
   id                                                 String                 @id @db.Uuid
@@ -709,4 +759,7 @@ model users {
   submissions_submissions_student_idTousers          submissions[]          @relation("submissions_student_idTousers")
   user_roles                                         user_roles[]
   device_tokens                                      device_tokens[]
+  chat_conversations_chat_conversations_created_byTousers chat_conversations[]      @relation("chat_conversations_created_byTousers")
+  chat_conversation_members                          chat_conversation_members[]
+  chat_messages_chat_messages_sender_idTousers       chat_messages[]          @relation("chat_messages_sender_idTousers")
 }

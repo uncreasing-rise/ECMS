@@ -88,11 +88,19 @@ export class InvoicesService {
    * PERF: Minimal select for better performance
    */
   async createInvoice(dto: CreateInvoiceDto) {
+    if (!dto.enrollment_id) {
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'invoice.bad_request',
+        message: 'enrollment_id là bắt buộc',
+      });
+    }
+
     try {
       const invoice = await this.prisma.invoices.create({
         data: {
           id: randomUUID(),
-          enrollment_id: dto.enrollment_id || undefined,
+          enrollment_id: dto.enrollment_id,
           amount: new Prisma.Decimal(Number(dto.amount)),
           due_date: dto.due_date ?? this.getDueDate(),
           status: 'pending',

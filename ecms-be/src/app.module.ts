@@ -20,6 +20,7 @@ import { AttendancesModule } from './modules/attendances/attendances.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { ExamsModule } from './modules/exams/exams.module';
 import { PortalModule } from './modules/portal/portal.module';
+import { ChatModule } from './modules/chat/chat.module.js';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PortalModule } from './modules/portal/portal.module';
     AssignmentsModule,
     ExamsModule,
     PortalModule,
+    ChatModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
