@@ -1,16 +1,14 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
-  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import { randomUUID } from 'node:crypto';
-import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import { EnrollStudentDto } from './dto/enroll-student.dto';
 import { CreateClassResourceDto } from './dto/create-class-resource.dto';
@@ -30,8 +28,11 @@ import {
   type ClassNotificationPublisher,
 } from './contracts/class-notification.publisher.js';
 import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
+import {
   type GetClassStudentsParams,
-  type GetClassesParams,
 } from './contracts/classes-lifecycle.contract.js';
 import { InvoicesService } from '../invoices/invoices.service.js';
 
@@ -71,130 +72,13 @@ const BLUEPRINT_SECTION_META_MARKER = '[ECMS_BP_META]';
 export class ClassesCoreService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     @Optional()
     @Inject(CLASS_NOTIFICATION_PUBLISHER)
     private readonly notificationsService?: ClassNotificationPublisher,
     @Optional()
     private readonly invoicesService?: InvoicesService,
   ) {}
-
-  async createClass(dto: CreateClassDto, actorId: string) {
-    const course = await this.prisma.courses.findUnique({
-      where: { id: dto.course_id },
-      select: { id: true },
-    });
-
-    if (!course) {
-      throw new BadRequestException('course_id không tồn tại');
-    }
-
-    if (dto.teacher_id) {
-      const teacher = await this.prisma.users.findUnique({
-        where: { id: dto.teacher_id },
-        select: { id: true },
-      });
-      if (!teacher) {
-        throw new BadRequestException('teacher_id không tồn tại');
-      }
-    }
-
-    const created = await this.prisma.classes.create({
-      data: {
-        id: randomUUID(),
-        course_id: dto.course_id,
-        teacher_id: dto.teacher_id,
-        name: dto.name,
-        max_students: dto.max_students,
-        start_date: dto.start_date ? new Date(dto.start_date) : null,
-        end_date: dto.end_date ? new Date(dto.end_date) : null,
-        status: dto.status ?? 'active',
-        created_at: new Date(),
-      } as unknown as Prisma.classesUncheckedCreateInput,
-    });
-
-    if (
-      dto.teacher_id &&
-      dto.teacher_id !== actorId &&
-      this.notificationsService
-    ) {
-      await this.notificationsService.create({
-        user_id: dto.teacher_id,
-        type: 'class_assigned_teacher',
-        title: 'Bạn được phân công lớp mới',
-        body: `Bạn được phân công phụ trách lớp: ${created.name ?? 'Lớp học mới'}`,
-        ref_type: 'class',
-        ref_id: created.id,
-      });
-    }
-
-    return created;
-  }
-
-  async getClasses(params: GetClassesParams) {
-    await this.ensureRole(params.actorId, ['admin', 'teacher']);
-
-    const where: Prisma.classesWhereInput = {};
-
-    if (params.courseId) where.course_id = params.courseId;
-    if (params.teacherId) where.teacher_id = params.teacherId;
-    const isAdmin = await this.hasRole(params.actorId, 'admin');
-    if (!isAdmin) {
-      where.teacher_id = params.actorId;
-    }
-
-    if (params.status) where.status = params.status;
-    if (params.search) {
-      where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { courses: { name: { contains: params.search, mode: 'insensitive' } } },
-      ];
-    }
-
-    const [items, total] = await Promise.all([
-      this.prisma.classes.findMany({
-        where,
-        skip: params.skip,
-        take: params.take,
-        orderBy: { created_at: 'desc' },
-        include: {
-          courses: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              level: true,
-              total_sessions: true,
-              price: true,
-              is_active: true,
-              created_at: true,
-            },
-          },
-          users: {
-            select: {
-              id: true,
-              full_name: true,
-              email: true,
-            },
-          },
-          _count: {
-            select: {
-              enrollments: true,
-              class_schedules: true,
-            },
-          },
-        },
-      }),
-      this.prisma.classes.count({ where }),
-    ]);
-
-    return {
-      data: items,
-      total,
-      skip: params.skip,
-      take: params.take,
-      hasMore: params.skip + params.take < total,
-    };
-  }
 
   async getClassById(classId: string, actorId: string) {
     await this.ensureCanViewClass(classId, actorId);
@@ -233,7 +117,7 @@ export class ClassesCoreService {
     });
 
     if (!item) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     return item;
@@ -338,10 +222,10 @@ export class ClassesCoreService {
     });
 
     await this.notifyClassStudents(classId, {
-      type: 'class_resource_created',
+      type: NotificationType.CLASS_RESOURCE_CREATED,
       title: 'Tài nguyên lớp mới',
       body: `Lớp của bạn có tài nguyên mới: ${dto.title}`,
-      ref_type: 'document',
+      ref_type: NotificationRefType.DOCUMENT,
       ref_id: resource.id,
     });
 
@@ -391,10 +275,10 @@ export class ClassesCoreService {
     });
 
     await this.notifyClassStudents(classId, {
-      type: 'assignment_created',
+      type: NotificationType.ASSIGNMENT_CREATED,
       title: 'Assignment mới',
       body: `Bạn có assignment mới: ${dto.title}`,
-      ref_type: 'assignment',
+      ref_type: NotificationRefType.ASSIGNMENT,
       ref_id: assignment.id,
     });
 
@@ -417,7 +301,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!assignment) {
-      throw new NotFoundException('Không tìm thấy assignment trong lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy assignment trong lớp này' });
     }
 
     return this.prisma.submissions.findMany({
@@ -443,7 +327,7 @@ export class ClassesCoreService {
     await this.ensureStudentEnrolledInClass(classId, studentId);
 
     if (!dto.content && !dto.file_url) {
-      throw new BadRequestException('Cần có content hoặc file_url để nộp bài');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Cần có content hoặc file_url để nộp bài' });
     }
 
     const assignment = await this.prisma.assignments.findFirst({
@@ -451,11 +335,11 @@ export class ClassesCoreService {
       select: { id: true, allow_resubmit: true, due_at: true },
     });
     if (!assignment) {
-      throw new NotFoundException('Không tìm thấy assignment trong lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy assignment trong lớp này' });
     }
 
     if (assignment.due_at && new Date() > assignment.due_at) {
-      throw new BadRequestException('Đã quá hạn nộp bài');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Đã quá hạn nộp bài' });
     }
 
     const latestSubmission = await this.prisma.submissions.findFirst({
@@ -465,7 +349,7 @@ export class ClassesCoreService {
     });
 
     if (latestSubmission && !assignment.allow_resubmit) {
-      throw new ConflictException('Assignment này không cho phép nộp lại');
+      throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'class.conflict', message: 'Assignment này không cho phép nộp lại' });
     }
 
     const created = await this.prisma.submissions.create({
@@ -480,10 +364,10 @@ export class ClassesCoreService {
     });
 
     await this.notifyClassManagers(classId, {
-      type: 'assignment_submitted',
+      type: NotificationType.ASSIGNMENT_SUBMITTED,
       title: 'Có bài nộp assignment mới',
       body: 'Một học viên vừa nộp assignment.',
-      ref_type: 'submission',
+      ref_type: NotificationRefType.SUBMISSION,
       ref_id: created.id,
     });
 
@@ -508,14 +392,12 @@ export class ClassesCoreService {
       select: { id: true, max_score: true },
     });
     if (!assignment) {
-      throw new NotFoundException('Không tìm thấy assignment trong lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy assignment trong lớp này' });
     }
 
     const maxScore = assignment.max_score ? Number(assignment.max_score) : 10;
     if (dto.score > maxScore) {
-      throw new BadRequestException(
-        `Điểm không được vượt quá max_score (${maxScore})`,
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `Điểm không được vượt quá max_score (${maxScore})`, });
     }
 
     const submission = await this.prisma.submissions.findFirst({
@@ -523,7 +405,7 @@ export class ClassesCoreService {
       select: { id: true, student_id: true },
     });
     if (!submission) {
-      throw new NotFoundException('Không tìm thấy bài nộp');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy bài nộp' });
     }
 
     const updated = await this.prisma.submissions.update({
@@ -541,10 +423,10 @@ export class ClassesCoreService {
     if (this.notificationsService) {
       await this.notificationsService.create({
         user_id: submission.student_id,
-        type: 'assignment_graded',
+        type: NotificationType.ASSIGNMENT_GRADED,
         title: 'Bài nộp đã được chấm',
         body: `Bạn vừa được chấm điểm assignment: ${dto.score}`,
-        ref_type: 'submission',
+        ref_type: NotificationRefType.SUBMISSION,
         ref_id: submissionId,
       });
     }
@@ -565,7 +447,7 @@ export class ClassesCoreService {
     });
 
     if (!before) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     if (dto.course_id) {
@@ -574,7 +456,7 @@ export class ClassesCoreService {
         select: { id: true },
       });
       if (!course) {
-        throw new BadRequestException('course_id không tồn tại');
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'course_id không tồn tại' });
       }
     }
 
@@ -584,7 +466,7 @@ export class ClassesCoreService {
         select: { id: true },
       });
       if (!teacher) {
-        throw new BadRequestException('teacher_id không tồn tại');
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'teacher_id không tồn tại' });
       }
     }
 
@@ -612,10 +494,10 @@ export class ClassesCoreService {
     });
 
     await this.notifyClassStudents(classId, {
-      type: 'class_updated',
+      type: NotificationType.CLASS_UPDATED,
       title: 'Lớp học có cập nhật mới',
       body: `Thông tin lớp ${updated.name ?? ''} đã được cập nhật.`.trim(),
-      ref_type: 'class',
+      ref_type: NotificationRefType.CLASS,
       ref_id: classId,
     });
 
@@ -626,12 +508,19 @@ export class ClassesCoreService {
     ) {
       await this.notificationsService.create({
         user_id: updated.teacher_id,
-        type: 'class_assigned_teacher',
+        type: NotificationType.CLASS_ASSIGNED_TEACHER,
         title: 'Bạn được phân công lớp',
         body: `Bạn vừa được phân công phụ trách lớp: ${updated.name ?? 'Lớp học'}`,
-        ref_type: 'class',
+        ref_type: NotificationRefType.CLASS,
         ref_id: classId,
       });
+    }
+
+    if (before.teacher_id) {
+      await this.redis.invalidateTeacherDashboardCache(before.teacher_id);
+    }
+    if (updated.teacher_id && updated.teacher_id !== before.teacher_id) {
+      await this.redis.invalidateTeacherDashboardCache(updated.teacher_id);
     }
 
     return updated;
@@ -650,10 +539,10 @@ export class ClassesCoreService {
     ]);
 
     if (!classItem) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
     if (!student) {
-      throw new BadRequestException('student_id không tồn tại');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'student_id không tồn tại' });
     }
 
     const targetStatus = dto.status ?? 'active';
@@ -664,7 +553,7 @@ export class ClassesCoreService {
     });
 
     if (existing && existing.status === 'active') {
-      throw new ConflictException('Học viên đã nằm trong lớp');
+      throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'class.conflict', message: 'Học viên đã nằm trong lớp' });
     }
 
     if (targetStatus === 'active') {
@@ -677,7 +566,7 @@ export class ClassesCoreService {
         });
 
         if (activeCount >= classItem.max_students) {
-          throw new ConflictException('Lớp học đã đủ sĩ số');
+          throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'class.conflict', message: 'Lớp học đã đủ sĩ số' });
         }
       }
 
@@ -711,7 +600,7 @@ export class ClassesCoreService {
         );
 
         if (hasConflict) {
-          throw new ConflictException('Học viên bị trùng lịch học');
+          throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'class.conflict', message: 'Học viên bị trùng lịch học' });
         }
       }
     }
@@ -728,13 +617,15 @@ export class ClassesCoreService {
       if (updated.status === 'active' && this.notificationsService) {
         await this.notificationsService.create({
           user_id: dto.student_id,
-          type: 'class_enrolled',
+          type: NotificationType.CLASS_ENROLLED,
           title: 'Bạn đã được enroll vào lớp',
           body: 'Bạn vừa được thêm vào một lớp học mới.',
-          ref_type: 'class',
+          ref_type: NotificationRefType.CLASS,
           ref_id: classId,
         });
       }
+
+      await this.invalidateTeacherDashboardByClass(classId);
 
       return updated;
     }
@@ -752,13 +643,15 @@ export class ClassesCoreService {
     if (created.status === 'active' && this.notificationsService) {
       await this.notificationsService.create({
         user_id: dto.student_id,
-        type: 'class_enrolled',
+        type: NotificationType.CLASS_ENROLLED,
         title: 'Bạn đã được enroll vào lớp',
         body: 'Bạn vừa được thêm vào một lớp học mới.',
-        ref_type: 'class',
+        ref_type: NotificationRefType.CLASS,
         ref_id: classId,
       });
     }
+
+    await this.invalidateTeacherDashboardByClass(classId);
 
     // FR-ECM-020: Auto-create invoice when student enrolls with active status
     if (created.status === 'active' && this.invoicesService) {
@@ -839,9 +732,7 @@ export class ClassesCoreService {
     const hasManualQuestions = !!dto.questions?.length;
     const hasBlueprint = !!effectiveBlueprintSections.length;
     if (!hasManualQuestions && !hasBlueprint) {
-      throw new BadRequestException(
-        'Bài kiểm tra phải có questions hoặc blueprint_sections',
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Bài kiểm tra phải có questions hoặc blueprint_sections', });
     }
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -935,9 +826,7 @@ export class ClassesCoreService {
             section.num_questions,
           );
           if (selected.length < section.num_questions) {
-            throw new BadRequestException(
-              `Không đủ câu hỏi trong bank cho section ${section.name}. Cần ${section.num_questions}, hiện có ${selected.length}`,
-            );
+            throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `Không đủ câu hỏi trong bank cho section ${section.name}. Cần ${section.num_questions}, hiện có ${selected.length}`, });
           }
 
           const score = section.score_per_question ?? 1;
@@ -975,9 +864,7 @@ export class ClassesCoreService {
             select: { id: true },
           });
           if (!passage) {
-            throw new BadRequestException(
-              `passage_id không tồn tại ở câu ${i + 1}`,
-            );
+            throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `passage_id không tồn tại ở câu ${i + 1}`, });
           }
         }
 
@@ -1072,10 +959,10 @@ export class ClassesCoreService {
         await this.notificationsService.createBulk(
           enrolled.map((it) => ({
             user_id: it.student_id,
-            type: 'exam_created',
+            type: NotificationType.EXAM_CREATED,
             title: 'Bài kiểm tra mới',
             body: `Lớp của bạn vừa có bài kiểm tra mới: ${createdExam.title}`,
-            ref_type: 'exam',
+            ref_type: NotificationRefType.EXAM,
             ref_id: createdExam.id,
           })),
         );
@@ -1123,16 +1010,16 @@ export class ClassesCoreService {
     });
 
     if (!examClass) {
-      throw new NotFoundException('Bài kiểm tra không thuộc lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Bài kiểm tra không thuộc lớp này' });
     }
 
     const exam = examClass.exams;
     const now = new Date();
     if (exam.available_from && now < exam.available_from) {
-      throw new BadRequestException('Bài kiểm tra chưa mở');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Bài kiểm tra chưa mở' });
     }
     if (exam.available_until && now > exam.available_until) {
-      throw new BadRequestException('Bài kiểm tra đã hết hạn');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Bài kiểm tra đã hết hạn' });
     }
 
     const attempts = await this.prisma.exam_sessions.findMany({
@@ -1160,9 +1047,7 @@ export class ClassesCoreService {
     const nextAttempt = (attempts[0]?.attempt_number ?? 0) + 1;
     const maxAttempts = exam.max_attempts ?? 1;
     if (nextAttempt > maxAttempts) {
-      throw new ConflictException(
-        `Đã vượt quá số lần làm bài (${maxAttempts})`,
-      );
+      throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'class.conflict', message: `Đã vượt quá số lần làm bài (${maxAttempts})`, });
     }
 
     const durationMinutes = exam.duration_minutes;
@@ -1232,13 +1117,13 @@ export class ClassesCoreService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy attempt');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy attempt' });
     }
     if (session.status !== 'in_progress') {
-      throw new BadRequestException('Attempt đã nộp, không thể sửa đáp án');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Attempt đã nộp, không thể sửa đáp án' });
     }
     if (new Date() > session.expires_at) {
-      throw new BadRequestException('Attempt đã hết thời gian làm bài');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Attempt đã hết thời gian làm bài' });
     }
 
     const questionIds = dto.answers.map((it) => it.question_id);
@@ -1258,9 +1143,7 @@ export class ClassesCoreService {
     const validSet = new Set(examQuestions.map((it) => it.question_id));
     const invalid = questionIds.filter((id) => !validSet.has(id));
     if (invalid.length) {
-      throw new BadRequestException(
-        `Các question_id không thuộc bài thi: ${invalid.join(', ')}`,
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `Các question_id không thuộc bài thi: ${invalid.join(', ')}`, });
     }
 
     const allSections = await this.prisma.exam_section_configs.findMany({
@@ -1292,9 +1175,7 @@ export class ClassesCoreService {
           (q) => q.question_id === item.question_id,
         );
         if (!examQuestion) {
-          throw new BadRequestException(
-            `question_id không hợp lệ: ${item.question_id}`,
-          );
+          throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `question_id không hợp lệ: ${item.question_id}`, });
         }
 
         const sectionId = examQuestion.section_config_id;
@@ -1302,9 +1183,7 @@ export class ClassesCoreService {
           ? effectiveWindows.find((w) => w.section_id === sectionId)
           : undefined;
         if (window && now > window.ends_at) {
-          throw new BadRequestException(
-            `Đã quá thời gian section ${window.name}, không thể sửa đáp án`,
-          );
+          throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: `Đã quá thời gian section ${window.name}, không thể sửa đáp án`, });
         }
 
         const existing = await tx.exam_answers.findFirst({
@@ -1361,7 +1240,7 @@ export class ClassesCoreService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy attempt');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy attempt' });
     }
     if (session.status === 'submitted') {
       return this.getExamAttemptDetail(classId, examId, sessionId, studentId);
@@ -1448,19 +1327,19 @@ export class ClassesCoreService {
     if (this.notificationsService) {
       await this.notificationsService.create({
         user_id: studentId,
-        type: 'exam_submitted',
+        type: NotificationType.EXAM_SUBMITTED,
         title: 'Đã nộp bài thi',
         body: 'Bài thi của bạn đã được nộp và chấm tự động.',
-        ref_type: 'exam_session',
+        ref_type: NotificationRefType.EXAM_SESSION,
         ref_id: sessionId,
       });
     }
 
     await this.notifyClassManagers(classId, {
-      type: 'exam_submission_received',
+      type: NotificationType.EXAM_SUBMISSION_RECEIVED,
       title: 'Có bài thi vừa nộp',
       body: 'Một học viên vừa nộp bài thi trong lớp của bạn.',
-      ref_type: 'exam_session',
+      ref_type: NotificationRefType.EXAM_SESSION,
       ref_id: sessionId,
     });
 
@@ -1494,7 +1373,7 @@ export class ClassesCoreService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy attempt');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy attempt' });
     }
 
     if (session.student_id !== actorId) {
@@ -1529,7 +1408,7 @@ export class ClassesCoreService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Học viên chưa được enroll trong lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Học viên chưa được enroll trong lớp này' });
     }
 
     if (existing.status === 'inactive') {
@@ -1544,13 +1423,15 @@ export class ClassesCoreService {
     if (this.notificationsService) {
       await this.notificationsService.create({
         user_id: studentId,
-        type: 'class_unenrolled',
+        type: NotificationType.CLASS_UNENROLLED,
         title: 'Bạn đã bị gỡ khỏi lớp',
         body: 'Tình trạng enroll của bạn cho lớp học này đã chuyển sang inactive.',
-        ref_type: 'class',
+        ref_type: NotificationRefType.CLASS,
         ref_id: classId,
       });
     }
+
+    await this.invalidateTeacherDashboardByClass(classId);
 
     return { message: 'Unenroll học viên thành công' };
   }
@@ -1561,26 +1442,30 @@ export class ClassesCoreService {
       select: { id: true, name: true, teacher_id: true },
     });
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     await this.notifyClassStudents(classId, {
-      type: 'class_deleted',
+      type: NotificationType.CLASS_DELETED,
       title: 'Lớp học đã đóng',
       body: `Lớp ${existing.name ?? ''} đã được đóng.`.trim(),
-      ref_type: 'class',
+      ref_type: NotificationRefType.CLASS,
       ref_id: classId,
     });
 
     if (existing.teacher_id && this.notificationsService) {
       await this.notificationsService.create({
         user_id: existing.teacher_id,
-        type: 'class_deleted',
+        type: NotificationType.CLASS_DELETED,
         title: 'Lớp học đã bị xóa',
         body: `Lớp ${existing.name ?? ''} đã bị xóa khỏi hệ thống.`.trim(),
-        ref_type: 'class',
+        ref_type: NotificationRefType.CLASS,
         ref_id: classId,
       });
+    }
+
+    if (existing.teacher_id) {
+      await this.redis.invalidateTeacherDashboardCache(existing.teacher_id);
     }
 
     await this.prisma.classes.delete({ where: { id: classId } });
@@ -1682,7 +1567,7 @@ export class ClassesCoreService {
     });
 
     if (!template) {
-      throw new NotFoundException('Không tìm thấy blueprint template');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy blueprint template' });
     }
 
     return {
@@ -1705,9 +1590,7 @@ export class ClassesCoreService {
       dto.sections?.length &&
       sectionTotalDuration > dto.total_duration_minutes
     ) {
-      throw new BadRequestException(
-        'Tổng duration của sections không được vượt total_duration_minutes',
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Tổng duration của sections không được vượt total_duration_minutes', });
     }
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -1764,7 +1647,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy blueprint template');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy blueprint template' });
     }
 
     await this.prisma.exam_templates.update({
@@ -1792,7 +1675,7 @@ export class ClassesCoreService {
       select: { id: true, is_active: true },
     });
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy blueprint template');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy blueprint template' });
     }
 
     if (existing.is_active === false) {
@@ -1841,9 +1724,7 @@ export class ClassesCoreService {
     });
 
     if (!section) {
-      throw new NotFoundException(
-        'Không tìm thấy section của blueprint template',
-      );
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy section của blueprint template', });
     }
 
     const sectionMeta = this.parseBlueprintSectionMeta(section.instructions);
@@ -1879,9 +1760,7 @@ export class ClassesCoreService {
     });
 
     if (!section) {
-      throw new NotFoundException(
-        'Không tìm thấy section của blueprint template',
-      );
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy section của blueprint template', });
     }
 
     await this.prisma.exam_sections.delete({ where: { id: sectionId } });
@@ -1899,7 +1778,7 @@ export class ClassesCoreService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     const actorRoles = await this.prisma.user_roles.findMany({
@@ -1914,11 +1793,11 @@ export class ClassesCoreService {
     const isTeacher = normalizedRoles.includes('teacher');
 
     if (!isAdmin && !isTeacher) {
-      throw new ForbiddenException('Bạn không có quyền quản lý lớp học');
+      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn không có quyền quản lý lớp học' });
     }
 
     if (!isAdmin && isTeacher && existing.teacher_id !== actorId) {
-      throw new ForbiddenException(teacherMessage);
+      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: teacherMessage });
     }
   }
 
@@ -1929,7 +1808,7 @@ export class ClassesCoreService {
     });
 
     if (!classItem) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     const isAdmin = await this.hasRole(actorId, 'admin');
@@ -1955,7 +1834,7 @@ export class ClassesCoreService {
       return;
     }
 
-    throw new ForbiddenException('Bạn không có quyền truy cập lớp học này');
+    throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn không có quyền truy cập lớp học này' });
   }
 
   private async hasRole(userId: string, roleName: string) {
@@ -1980,9 +1859,7 @@ export class ClassesCoreService {
       roles.map((role) => this.hasRole(userId, role)),
     );
     if (!checks.some(Boolean)) {
-      throw new ForbiddenException(
-        'Bạn không có quyền truy cập tài nguyên này',
-      );
+      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn không có quyền truy cập tài nguyên này', });
     }
   }
 
@@ -1992,7 +1869,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy lớp học' });
     }
   }
 
@@ -2005,7 +1882,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!enrollment) {
-      throw new ForbiddenException('Bạn chưa được enroll vào lớp này');
+      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn chưa được enroll vào lớp này' });
     }
   }
 
@@ -2015,7 +1892,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!examClass) {
-      throw new NotFoundException('Bài kiểm tra không thuộc lớp này');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Bài kiểm tra không thuộc lớp này' });
     }
   }
 
@@ -2534,7 +2411,7 @@ export class ClassesCoreService {
       select: { id: true },
     });
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy blueprint template');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Không tìm thấy blueprint template' });
     }
   }
 
@@ -2549,13 +2426,11 @@ export class ClassesCoreService {
     });
 
     if (!template) {
-      throw new NotFoundException(
-        'Blueprint template không tồn tại hoặc đã bị tắt',
-      );
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'class.not_found', message: 'Blueprint template không tồn tại hoặc đã bị tắt', });
     }
 
     if (!template.exam_sections.length) {
-      throw new BadRequestException('Blueprint template chưa có section nào');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'Blueprint template chưa có section nào' });
     }
 
     return template;
@@ -2903,6 +2778,7 @@ export class ClassesCoreService {
           updated_at: new Date(),
         },
       });
+      await this.redis.invalidateParentOverviewCache(studentId);
       return;
     }
 
@@ -2918,15 +2794,17 @@ export class ClassesCoreService {
         updated_at: new Date(),
       },
     });
+
+    await this.redis.invalidateParentOverviewCache(studentId);
   }
 
   private async notifyClassStudents(
     classId: string,
     payload: {
-      type: string;
+      type: NotificationType;
       title: string;
       body: string;
-      ref_type?: string;
+      ref_type?: NotificationRefType;
       ref_id?: string;
     },
   ) {
@@ -2958,10 +2836,10 @@ export class ClassesCoreService {
   private async notifyClassManagers(
     classId: string,
     payload: {
-      type: string;
+      type: NotificationType;
       title: string;
       body: string;
-      ref_type?: string;
+      ref_type?: NotificationRefType;
       ref_id?: string;
     },
   ) {
@@ -2987,4 +2865,23 @@ export class ClassesCoreService {
       ref_id: payload.ref_id,
     });
   }
+
+  private async invalidateTeacherDashboardByClass(classId: string) {
+    const classItem = await this.prisma.classes.findUnique({
+      where: { id: classId },
+      select: { teacher_id: true },
+    });
+
+    if (!classItem?.teacher_id) {
+      return;
+    }
+
+    await this.redis.invalidateTeacherDashboardCache(classItem.teacher_id);
+  }
 }
+
+
+
+
+
+

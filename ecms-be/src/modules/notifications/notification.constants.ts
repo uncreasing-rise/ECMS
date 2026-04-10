@@ -1,0 +1,52 @@
+export enum NotificationType {
+  ACCOUNT_VERIFIED = 'account_verified',
+  ASSIGNMENT_CREATED = 'assignment_created',
+  ASSIGNMENT_GRADED = 'assignment_graded',
+  ASSIGNMENT_SUBMITTED = 'assignment_submitted',
+  ATTENDANCE_ALERT = 'attendance_alert',
+  ATTENDANCE_UPDATED = 'attendance_updated',
+  CLASS_ASSIGNED_TEACHER = 'class_assigned_teacher',
+  CLASS_DELETED = 'class_deleted',
+  CLASS_ENROLLED = 'class_enrolled',
+  CLASS_RESOURCE_CREATED = 'class_resource_created',
+  CLASS_SCHEDULE_CREATED = 'class_schedule_created',
+  CLASS_SCHEDULE_DELETED = 'class_schedule_deleted',
+  CLASS_SCHEDULE_UPDATED = 'class_schedule_updated',
+  CLASS_UNENROLLED = 'class_unenrolled',
+  CLASS_UPDATED = 'class_updated',
+  COURSE_CREATED = 'course_created',
+  COURSE_DEACTIVATED = 'course_deactivated',
+  COURSE_UPDATED = 'course_updated',
+  EXAM_ASSIGNED = 'exam_assigned',
+  EXAM_CREATED = 'exam_created',
+  EXAM_SUBMISSION_RECEIVED = 'exam_submission_received',
+  EXAM_SUBMITTED = 'exam_submitted',
+  INVOICE_CREATED = 'invoice_created',
+  INVOICE_PAYMENT_RECORDED = 'invoice_payment_recorded',
+  INVOICE_REFUNDED = 'invoice_refunded',
+  PARENT_MESSAGE = 'parent_message',
+  STUDENT_ABSENCE_ALERT = 'student_absence_alert',
+  STUDENT_STATUS_CHANGED = 'student_status_changed',
+}
+
+export enum NotificationRefType {
+  ASSIGNMENT = 'assignment',
+  AUTH = 'auth',
+  CLASS = 'class',
+  CLASS_SCHEDULE = 'class_schedule',
+  COURSE = 'course',
+  DOCUMENT = 'document',
+  EXAM = 'exam',
+  EXAM_SESSION = 'exam_session',
+  INVOICE = 'invoice',
+  PARENT_CONTACT = 'parent_contact',
+  SCHEDULE = 'schedule',
+  STUDENT = 'student',
+  SUBMISSION = 'submission',
+}
+
+export const NotificationMessages = {
+  accountVerifiedTitle: 'Tai khoan da duoc kich hoat',
+  accountVerifiedBody:
+    'Chao mung ban den voi ECMS. Ban da co the su dung day du chuc nang.',
+} as const;

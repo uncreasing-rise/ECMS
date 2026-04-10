@@ -8,9 +8,10 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { NotificationRealtimeBus } from '../../modules/notifications/notification-realtime.bus.js';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -28,16 +29,22 @@ type NotificationPayload = Record<string, unknown>;
   transports: ['websocket', 'polling'],
 })
 export class NotificationsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(NotificationsGateway.name);
-  private userSockets = new Map<string, Set<string>>(); // user_id -> set of socket.ids
 
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
+    private readonly realtimeBus: NotificationRealtimeBus,
   ) {}
+
+  async onModuleInit() {
+    await this.realtimeBus.subscribe(async (message) => {
+      this.broadcastToUser(message.userId, message.notification);
+    });
+  }
 
   handleConnection(client: AuthenticatedSocket) {
     const token = this.extractAccessToken(client);
@@ -74,15 +81,6 @@ export class NotificationsGateway
   }
 
   handleDisconnect(client: AuthenticatedSocket) {
-    if (client.userId) {
-      const sockets = this.userSockets.get(client.userId);
-      if (sockets) {
-        sockets.delete(client.id);
-        if (sockets.size === 0) {
-          this.userSockets.delete(client.userId);
-        }
-      }
-    }
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
@@ -111,10 +109,7 @@ export class NotificationsGateway
 
     const userId = client.userId;
 
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(client.id);
+    client.join(userId);
 
     client.emit('registered', { user_id: userId });
     this.logger.log(`User ${userId} registered via socket ${client.id}`);
@@ -146,19 +141,8 @@ export class NotificationsGateway
    * Broadcast real-time notification to specific user
    */
   broadcastToUser(user_id: string, notification: NotificationPayload) {
-    const sockets = this.userSockets.get(user_id);
-    if (!sockets || sockets.size === 0) {
-      this.logger.warn(`No connected sockets for user: ${user_id}`);
-      return false;
-    }
-
-    sockets.forEach((socketId) => {
-      this.server.to(socketId).emit('notification', notification);
-    });
-
-    this.logger.log(
-      `Real-time notification sent to ${sockets.size} sockets of user ${user_id}`,
-    );
+    this.server.to(user_id).emit('notification', notification);
+    this.logger.log(`Real-time notification broadcast to room ${user_id}`);
     return true;
   }
 
@@ -166,21 +150,15 @@ export class NotificationsGateway
    * Broadcast to multiple users
    */
   broadcastToUsers(user_ids: string[], notification: NotificationPayload) {
-    let broadcastCount = 0;
-    user_ids.forEach((user_id) => {
-      const sockets = this.userSockets.get(user_id);
-      if (sockets && sockets.size > 0) {
-        sockets.forEach((socketId) => {
-          this.server.to(socketId).emit('notification', notification);
-          broadcastCount++;
-        });
-      }
+    const uniqueUserIds = Array.from(new Set(user_ids));
+    uniqueUserIds.forEach((user_id) => {
+      this.server.to(user_id).emit('notification', notification);
     });
 
     this.logger.log(
-      `Real-time notification sent to ${broadcastCount} sockets across ${user_ids.length} users`,
+      `Real-time notification broadcast to ${uniqueUserIds.length} user rooms`,
     );
-    return broadcastCount;
+    return uniqueUserIds.length;
   }
 
   /**
@@ -195,22 +173,22 @@ export class NotificationsGateway
    * Get online user count
    */
   getOnlineCount(): number {
-    return this.userSockets.size;
+    return this.server?.sockets?.sockets?.size ?? 0;
   }
 
   /**
    * Check if user is online
    */
-  isUserOnline(user_id: string): boolean {
-    const sockets = this.userSockets.get(user_id);
-    return !!sockets && sockets.size > 0;
+  async isUserOnline(user_id: string): Promise<boolean> {
+    const sockets = await this.server.in(user_id).fetchSockets();
+    return sockets.length > 0;
   }
 
   /**
    * Get user's socket count
    */
-  getUserSocketCount(user_id: string): number {
-    const sockets = this.userSockets.get(user_id);
-    return sockets ? sockets.size : 0;
+  async getUserSocketCount(user_id: string): Promise<number> {
+    const sockets = await this.server.in(user_id).fetchSockets();
+    return sockets.length;
   }
 }

@@ -1,3 +1,5 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
   Controller,
   Get,
@@ -6,7 +8,6 @@ import {
   Query,
   Param,
   UseGuards,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -133,7 +134,7 @@ export class AttendancesController {
     @Query('class_id') classId: string,
   ) {
     if (!classId) {
-      throw new BadRequestException('class_id là bắt buộc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'attendance.bad_request', message: 'class_id là bắt buộc' });
     }
 
     const count = await this.attendancesService.getConsecutiveAbsenceCount(
@@ -194,3 +195,8 @@ export class AttendancesController {
     return this.attendancesService.getStudentMakeupSessions(studentId);
   }
 }
+
+
+
+
+

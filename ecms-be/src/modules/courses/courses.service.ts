@@ -1,9 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
+import {
+  Injectable,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 
 export interface GetCoursesParams {
   search?: string;
@@ -14,7 +23,10 @@ export interface GetCoursesParams {
 
 @Injectable()
 export class CoursesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async createCourse(dto: CreateCourseDto) {
     const created = await this.prisma.courses.create({
@@ -40,6 +52,8 @@ export class CoursesService {
       },
     });
 
+    await this.notifyAdminsCourseCreated(created.id, created.name);
+
     return created;
   }
 
@@ -50,10 +64,10 @@ export class CoursesService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy khóa học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
     }
 
-    return this.prisma.courses.update({
+    const updated = await this.prisma.courses.update({
       where: { id: courseId },
       data: {
         name: dto.name,
@@ -74,6 +88,10 @@ export class CoursesService {
         created_at: true,
       },
     });
+
+    await this.notifyTeachersCourseUpdated(updated.id, updated.name);
+
+    return updated;
   }
 
   async deleteCourse(courseId: string) {
@@ -83,14 +101,14 @@ export class CoursesService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy khóa học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
     }
 
     if (existing.is_active === false) {
       return { message: 'Khóa học đã được tắt trước đó' };
     }
 
-    return this.prisma.courses.update({
+    const deactivated = await this.prisma.courses.update({
       where: { id: courseId },
       data: { is_active: false },
       select: {
@@ -99,6 +117,10 @@ export class CoursesService {
         is_active: true,
       },
     });
+
+    await this.notifyTeachersCourseDeactivated(deactivated.id, deactivated.name);
+
+    return deactivated;
   }
 
   async getCourses(params: GetCoursesParams) {
@@ -167,9 +189,124 @@ export class CoursesService {
     });
 
     if (!course) {
-      throw new NotFoundException('Không tìm thấy khóa học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
     }
 
     return course;
   }
+
+  private async notifyAdminsCourseCreated(courseId: string, courseName: string) {
+    try {
+      const admins = await this.prisma.user_roles.findMany({
+        where: {
+          roles: {
+            name: 'admin',
+          },
+        },
+        select: {
+          user_id: true,
+        },
+      });
+
+      const adminIds = Array.from(new Set(admins.map((item) => item.user_id)));
+      if (!adminIds.length) {
+        return;
+      }
+
+      await this.notifications.createBulk(
+        adminIds.map((userId) => ({
+          user_id: userId,
+          type: NotificationType.COURSE_CREATED,
+          title: 'Khoa hoc moi duoc tao',
+          body: `Khoa hoc "${courseName}" vua duoc tao trong he thong.`,
+          ref_type: NotificationRefType.COURSE,
+          ref_id: courseId,
+        })),
+      );
+    } catch {
+      // Course creation must not fail because notification delivery failed.
+    }
+  }
+
+  private async notifyTeachersCourseUpdated(courseId: string, courseName: string) {
+    try {
+      const classes = await this.prisma.classes.findMany({
+        where: {
+          course_id: courseId,
+          teacher_id: {
+            not: null,
+          },
+        },
+        select: {
+          teacher_id: true,
+        },
+      });
+
+      const teacherIds = Array.from(
+        new Set(classes.map((item) => item.teacher_id).filter((id): id is string => Boolean(id))),
+      );
+
+      if (!teacherIds.length) {
+        return;
+      }
+
+      await this.notifications.createBulk(
+        teacherIds.map((userId) => ({
+          user_id: userId,
+          type: NotificationType.COURSE_UPDATED,
+          title: 'Khoa hoc da duoc cap nhat',
+          body: `Khoa hoc "${courseName}" da duoc cap nhat. Vui long kiem tra cac lop lien quan.`,
+          ref_type: NotificationRefType.COURSE,
+          ref_id: courseId,
+        })),
+      );
+    } catch {
+      // Course update must not fail because notification delivery failed.
+    }
+  }
+
+  private async notifyTeachersCourseDeactivated(
+    courseId: string,
+    courseName: string,
+  ) {
+    try {
+      const classes = await this.prisma.classes.findMany({
+        where: {
+          course_id: courseId,
+          teacher_id: {
+            not: null,
+          },
+        },
+        select: {
+          teacher_id: true,
+        },
+      });
+
+      const teacherIds = Array.from(
+        new Set(classes.map((item) => item.teacher_id).filter((id): id is string => Boolean(id))),
+      );
+
+      if (!teacherIds.length) {
+        return;
+      }
+
+      await this.notifications.createBulk(
+        teacherIds.map((userId) => ({
+          user_id: userId,
+          type: NotificationType.COURSE_DEACTIVATED,
+          title: 'Khoa hoc da tam ngung',
+          body: `Khoa hoc "${courseName}" da duoc tam ngung kich hoat.`,
+          ref_type: NotificationRefType.COURSE,
+          ref_id: courseId,
+        })),
+      );
+    } catch {
+      // Course deactivation must not fail because notification delivery failed.
+    }
+  }
 }
+
+
+
+
+

@@ -1,13 +1,17 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { RedisService } from '../../common/redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 import { RecordAttendanceDto } from './dto/record-attendance.dto.js';
 
 /**
@@ -22,6 +26,7 @@ export class AttendancesService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -36,7 +41,7 @@ export class AttendancesService {
     });
 
     if (!schedule) {
-      throw new NotFoundException('Không tìm thấy buổi học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'attendance.not_found', message: 'Không tìm thấy buổi học' });
     }
 
     // Validate student is enrolled in the class
@@ -50,7 +55,7 @@ export class AttendancesService {
     });
 
     if (!enrollment) {
-      throw new BadRequestException('Học viên không được đăng ký lớp này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'attendance.bad_request', message: 'Học viên không được đăng ký lớp này' });
     }
 
     // Check if attendance already recorded
@@ -64,7 +69,7 @@ export class AttendancesService {
 
     if (existing) {
       // Update existing attendance
-      return this.prisma.attendances.update({
+      const updated = await this.prisma.attendances.update({
         where: { id: existing.id },
         data: {
           status: dto.status,
@@ -73,6 +78,9 @@ export class AttendancesService {
           recorded_at: new Date(),
         },
       });
+
+      await this.redis.invalidateParentOverviewCache(dto.student_id);
+      return updated;
     }
 
     // Create new attendance record
@@ -99,6 +107,8 @@ export class AttendancesService {
         schedule.class_id,
       );
     }
+
+    await this.redis.invalidateParentOverviewCache(dto.student_id);
 
     return attendance;
   }
@@ -172,10 +182,10 @@ export class AttendancesService {
         // Notify student
         await this.notificationsService.create({
           user_id: studentId,
-          type: 'attendance_alert',
+          type: NotificationType.ATTENDANCE_ALERT,
           title: 'Cảnh báo chuyên cần',
           body: `Bạn đã vắng ${consecutiveAbsences} buổi liên tiếp. Vui lòng liên hệ giáo viên.`,
-          ref_type: 'class',
+          ref_type: NotificationRefType.CLASS,
           ref_id: classId,
         });
 
@@ -188,10 +198,10 @@ export class AttendancesService {
         if (classInfo?.teacher_id) {
           await this.notificationsService.create({
             user_id: classInfo.teacher_id,
-            type: 'student_absence_alert',
+            type: NotificationType.STUDENT_ABSENCE_ALERT,
             title: 'Cảnh báo học viên vắng nhiều',
             body: `Học viên ${student.full_name} đã vắng ${consecutiveAbsences} buổi liên tiếp trong lớp ${classInfo.name}.`,
-            ref_type: 'student',
+            ref_type: NotificationRefType.STUDENT,
             ref_id: studentId,
           });
         }
@@ -481,18 +491,14 @@ export class AttendancesService {
     });
 
     if (!originalAttendance) {
-      throw new NotFoundException(
-        'Không tìm thấy bản ghi điểm danh cho buổi học này',
-      );
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'attendance.not_found', message: 'Không tìm thấy bản ghi điểm danh cho buổi học này', });
     }
 
     if (
       originalAttendance.status === 'present' ||
       originalAttendance.status === 'late'
     ) {
-      throw new BadRequestException(
-        'Học viên đã có mặt buổi này, không cần dự bù giờ',
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'attendance.bad_request', message: 'Học viên đã có mặt buổi này, không cần dự bù giờ', });
     }
 
     // Validate makeup session exists
@@ -504,7 +510,7 @@ export class AttendancesService {
     });
 
     if (!makeupSession) {
-      throw new NotFoundException('Không tìm thấy buổi học bù');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'attendance.not_found', message: 'Không tìm thấy buổi học bù' });
     }
 
     // For now, just mark attendance as present for makeup session
@@ -576,3 +582,8 @@ export class AttendancesService {
     };
   }
 }
+
+
+
+
+

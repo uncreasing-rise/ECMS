@@ -1,3 +1,5 @@
+import { AppErrorCode } from '../api/app-error-code.enum.js';
+import { AppException } from '../api/app-exception.js';
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 
 @Injectable()
@@ -11,7 +13,7 @@ export class OptionalDatePipe implements PipeTransform<string | undefined, Date 
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`${this.fieldName} không hợp lệ`);
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'error.bad_request', message: `${this.fieldName} không hợp lệ` });
     }
 
     return parsed;
@@ -24,14 +26,18 @@ export class RequiredDatePipe implements PipeTransform<string | undefined, Date>
 
   transform(value: string | undefined): Date {
     if (value === undefined || value === null || value === '') {
-      throw new BadRequestException(`${this.fieldName} là bắt buộc`);
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'error.bad_request', message: `${this.fieldName} là bắt buộc` });
     }
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`${this.fieldName} không hợp lệ`);
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'error.bad_request', message: `${this.fieldName} không hợp lệ` });
     }
 
     return parsed;
   }
 }
+
+
+
+

@@ -3,11 +3,27 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { createClient } from 'redis';
+import { RedisIoAdapter } from './common/websocket/redis-io.adapter';
+import { ApiExceptionFilter } from './common/api/api-exception.filter.js';
+import { ApiResponseInterceptor } from './common/api/api-response.interceptor.js';
+import { AppException } from './common/api/app-exception.js';
+import { AppErrorCode } from './common/api/app-error-code.enum.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableShutdownHooks();
   const isProduction = process.env.NODE_ENV === 'production';
   const enableSwagger = !isProduction || process.env.ENABLE_SWAGGER === 'true';
+
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    const pubClient = createClient({ url: redisUrl });
+    const subClient = pubClient.duplicate();
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    app.useWebSocketAdapter(new RedisIoAdapter(app, pubClient, subClient));
+  }
 
   const trustProxyRaw = process.env.TRUST_PROXY;
   const trustProxy = trustProxyRaw
@@ -42,8 +58,20 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
+      exceptionFactory: (errors) =>
+        new AppException({
+          code: AppErrorCode.VALIDATION_ERROR,
+          errorKey: 'error.validation_failed',
+          details: errors.map((error) => ({
+            property: error.property,
+            constraints: error.constraints,
+          })),
+        }),
     }),
   );
+
+  app.useGlobalInterceptors(new ApiResponseInterceptor());
+  app.useGlobalFilters(new ApiExceptionFilter());
 
   if (enableSwagger) {
     const swaggerConfig = new DocumentBuilder()

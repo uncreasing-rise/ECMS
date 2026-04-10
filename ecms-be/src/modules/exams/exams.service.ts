@@ -1,11 +1,16 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
-  BadRequestException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 
 type UserContext = {
   id: string;
@@ -118,11 +123,14 @@ export type ViolationMeta = Record<string, unknown>;
 
 @Injectable()
 export class ExamsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async createQuestion(createdBy: string, dto: QuestionDraft) {
     if (!dto.question_format || !dto.content) {
-      throw new BadRequestException('question_format và content là bắt buộc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'question_format và content là bắt buộc' });
     }
 
     return this.prisma.questions.create({
@@ -201,7 +209,7 @@ export class ExamsService {
 
   async importQuestions(createdBy: string, dto: ImportQuestionsDto) {
     if (!dto.format) {
-      throw new BadRequestException('format là bắt buộc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'format là bắt buộc' });
     }
 
     const questions: QuestionDraft[] = [];
@@ -216,7 +224,7 @@ export class ExamsService {
     ) {
       questions.push(...this.parseDelimitedLines(dto.raw));
     } else {
-      throw new BadRequestException('Payload import không hợp lệ');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Payload import không hợp lệ' });
     }
 
     if (questions.length === 0) {
@@ -279,11 +287,11 @@ export class ExamsService {
     });
 
     if (!question) {
-      throw new NotFoundException('Không tìm thấy câu hỏi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy câu hỏi' });
     }
 
     if (question.created_by !== userId) {
-      throw new BadRequestException('Chỉ chủ sở hữu mới được gửi review');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Chỉ chủ sở hữu mới được gửi review' });
     }
 
     await this.prisma.audit_logs.create({
@@ -307,7 +315,7 @@ export class ExamsService {
     });
 
     if (!question) {
-      throw new NotFoundException('Không tìm thấy câu hỏi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy câu hỏi' });
     }
 
     const updated = await this.prisma.questions.update({
@@ -386,11 +394,11 @@ export class ExamsService {
       !Array.isArray(dto.questions) ||
       dto.questions.length === 0
     ) {
-      throw new BadRequestException('title và questions là bắt buộc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'title và questions là bắt buộc' });
     }
 
     if (!dto.duration_minutes || dto.duration_minutes <= 0) {
-      throw new BadRequestException('duration_minutes là bắt buộc và phải > 0');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'duration_minutes là bắt buộc và phải > 0' });
     }
 
     const examId = randomUUID();
@@ -436,7 +444,7 @@ export class ExamsService {
 
   async createAutoExam(createdBy: string, dto: AutoExamDto) {
     if (!dto.title || !Array.isArray(dto.matrix) || dto.matrix.length === 0) {
-      throw new BadRequestException('title và matrix là bắt buộc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'title và matrix là bắt buộc' });
     }
 
     const pickedQuestionIds: string[] = [];
@@ -471,9 +479,7 @@ export class ExamsService {
 
     const uniqueQuestionIds = Array.from(new Set(pickedQuestionIds));
     if (uniqueQuestionIds.length === 0) {
-      throw new BadRequestException(
-        'Không chọn được câu hỏi phù hợp từ ma trận',
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Không chọn được câu hỏi phù hợp từ ma trận', });
     }
 
     const totalScore = Number(dto.total_score ?? uniqueQuestionIds.length);
@@ -499,10 +505,10 @@ export class ExamsService {
   ) {
     const exam = await this.prisma.exams.findUnique({
       where: { id: examId },
-      select: { id: true },
+      select: { id: true, title: true },
     });
     if (!exam) {
-      throw new NotFoundException('Không tìm thấy đề thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy đề thi' });
     }
 
     const uniqueClassIds = Array.from(new Set(classIds));
@@ -528,6 +534,44 @@ export class ExamsService {
       }),
     );
 
+    const activeEnrollments = await this.prisma.enrollments.findMany({
+      where: {
+        class_id: { in: uniqueClassIds },
+        status: 'active',
+      },
+      select: {
+        student_id: true,
+        classes: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (activeEnrollments.length > 0) {
+      const classesByStudent = new Map<string, Set<string>>();
+
+      for (const enrollment of activeEnrollments) {
+        const classNames = classesByStudent.get(enrollment.student_id) ?? new Set<string>();
+        if (enrollment.classes.name) {
+          classNames.add(enrollment.classes.name);
+        }
+        classesByStudent.set(enrollment.student_id, classNames);
+      }
+
+      await this.notifications.createBulk(
+        Array.from(classesByStudent.entries()).map(([studentId, classNames]) => ({
+          user_id: studentId,
+          type: NotificationType.EXAM_ASSIGNED,
+          title: 'Ban co bai thi moi',
+          body: `Bai thi "${exam.title}" da duoc giao cho lop: ${Array.from(classNames).join(', ')}.`,
+          ref_type: NotificationRefType.EXAM,
+          ref_id: examId,
+        })),
+      );
+    }
+
     return {
       exam_id: examId,
       assigned_class_ids: uniqueClassIds,
@@ -548,7 +592,7 @@ export class ExamsService {
     });
 
     if (!exam) {
-      throw new NotFoundException('Không tìm thấy đề thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy đề thi' });
     }
 
     const shuffledQuestions =
@@ -618,15 +662,15 @@ export class ExamsService {
     });
 
     if (!exam) {
-      throw new NotFoundException('Không tìm thấy đề thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy đề thi' });
     }
 
     const now = new Date();
     if (exam.available_from && now < exam.available_from) {
-      throw new BadRequestException('Chưa đến thời gian mở bài thi');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Chưa đến thời gian mở bài thi' });
     }
     if (exam.available_until && now > exam.available_until) {
-      throw new BadRequestException('Đã hết cửa sổ thời gian bắt đầu bài thi');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Đã hết cửa sổ thời gian bắt đầu bài thi' });
     }
 
     const assignedClass = await this.prisma.exam_classes.findFirst({
@@ -645,7 +689,7 @@ export class ExamsService {
     });
 
     if (!assignedClass) {
-      throw new BadRequestException('Bạn không thuộc lớp được giao đề thi này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn không thuộc lớp được giao đề thi này' });
     }
 
     const activeSession = await this.prisma.exam_sessions.findFirst({
@@ -674,7 +718,7 @@ export class ExamsService {
 
     const maxAttempts = Number(exam.max_attempts ?? 1);
     if (totalAttempts >= maxAttempts) {
-      throw new BadRequestException('Bạn đã hết số lần làm bài cho phép');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn đã hết số lần làm bài cho phép' });
     }
 
     const attemptNumber = totalAttempts + 1;
@@ -726,20 +770,20 @@ export class ExamsService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy phiên thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy phiên thi' });
     }
 
     if (session.student_id !== studentId) {
-      throw new BadRequestException('Bạn không có quyền với phiên thi này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn không có quyền với phiên thi này' });
     }
 
     if (session.status !== 'in_progress') {
-      throw new BadRequestException('Phiên thi đã kết thúc');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Phiên thi đã kết thúc' });
     }
 
     if (session.expires_at.getTime() < Date.now()) {
       await this.submitSession(sessionId, studentId, true);
-      throw new BadRequestException('Phiên thi đã hết giờ và được nộp tự động');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Phiên thi đã hết giờ và được nộp tự động' });
     }
 
     await this.prisma.exam_answers.updateMany({
@@ -773,11 +817,11 @@ export class ExamsService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy phiên thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy phiên thi' });
     }
 
     if (session.student_id !== studentId) {
-      throw new BadRequestException('Bạn không có quyền với phiên thi này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn không có quyền với phiên thi này' });
     }
 
     const previousLog = Array.isArray(session.violation_log)
@@ -826,11 +870,11 @@ export class ExamsService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy phiên thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy phiên thi' });
     }
 
     if (session.student_id !== studentId) {
-      throw new BadRequestException('Bạn không có quyền với phiên thi này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn không có quyền với phiên thi này' });
     }
 
     if (session.submitted_at) {
@@ -910,7 +954,7 @@ export class ExamsService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy phiên thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy phiên thi' });
     }
 
     await this.prisma.exam_answers.update({
@@ -967,11 +1011,11 @@ export class ExamsService {
     });
 
     if (!session) {
-      throw new NotFoundException('Không tìm thấy phiên thi');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'exam.not_found', message: 'Không tìm thấy phiên thi' });
     }
 
     if (requester.role === 'student' && requester.id !== session.student_id) {
-      throw new BadRequestException('Bạn không có quyền xem kết quả này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'exam.bad_request', message: 'Bạn không có quyền xem kết quả này' });
     }
 
     const canShowResult =
@@ -1110,3 +1154,8 @@ export class ExamsService {
     return Object.fromEntries(shuffled);
   }
 }
+
+
+
+
+

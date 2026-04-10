@@ -4,11 +4,13 @@ import { ClassesExamsService } from './services/classes-exams.service.js';
 import { ClassesGradingService } from './services/classes-grading.service.js';
 import { ClassesSchedulesService } from './services/classes-schedules.service.js';
 import { ClassesLifecycleService } from './services/classes-lifecycle.service.js';
+import { ClassesCoreService } from './classes.core.service.js';
 
 @Injectable()
 export class ClassesService {
   constructor(
     private readonly lifecycle: ClassesLifecycleService,
+    private readonly core: ClassesCoreService,
     private readonly schedules: ClassesSchedulesService,
     private readonly assignments: ClassesAssignmentsService,
     private readonly exams: ClassesExamsService,
@@ -23,48 +25,44 @@ export class ClassesService {
     return this.lifecycle.getClasses(...args);
   }
 
-  getClassById(...args: Parameters<ClassesLifecycleService['getClassById']>) {
-    return this.lifecycle.getClassById(...args);
+  getClassById(...args: Parameters<ClassesCoreService['getClassById']>) {
+    return this.core.getClassById(...args);
   }
 
-  getClassStudents(
-    ...args: Parameters<ClassesLifecycleService['getClassStudents']>
-  ) {
-    return this.lifecycle.getClassStudents(...args);
+  getClassStudents(...args: Parameters<ClassesCoreService['getClassStudents']>) {
+    return this.core.getClassStudents(...args);
   }
 
   getClassResources(
-    ...args: Parameters<ClassesLifecycleService['getClassResources']>
+    ...args: Parameters<ClassesCoreService['getClassResources']>
   ) {
-    return this.lifecycle.getClassResources(...args);
+    return this.core.getClassResources(...args);
   }
 
   createClassResource(
-    ...args: Parameters<ClassesLifecycleService['createClassResource']>
+    ...args: Parameters<ClassesCoreService['createClassResource']>
   ) {
-    return this.lifecycle.createClassResource(...args);
+    return this.core.createClassResource(...args);
   }
 
-  updateClass(...args: Parameters<ClassesLifecycleService['updateClass']>) {
-    return this.lifecycle.updateClass(...args);
+  updateClass(...args: Parameters<ClassesCoreService['updateClass']>) {
+    return this.core.updateClass(...args);
   }
 
-  enrollStudent(...args: Parameters<ClassesLifecycleService['enrollStudent']>) {
-    return this.lifecycle.enrollStudent(...args);
+  enrollStudent(...args: Parameters<ClassesCoreService['enrollStudent']>) {
+    return this.core.enrollStudent(...args);
   }
 
-  unenrollStudent(
-    ...args: Parameters<ClassesLifecycleService['unenrollStudent']>
-  ) {
-    return this.lifecycle.unenrollStudent(...args);
+  unenrollStudent(...args: Parameters<ClassesCoreService['unenrollStudent']>) {
+    return this.core.unenrollStudent(...args);
   }
 
-  deleteClass(...args: Parameters<ClassesLifecycleService['deleteClass']>) {
-    return this.lifecycle.deleteClass(...args);
+  deleteClass(...args: Parameters<ClassesCoreService['deleteClass']>) {
+    return this.core.deleteClass(...args);
   }
 
-  getMyClasses(...args: Parameters<ClassesLifecycleService['getMyClasses']>) {
-    return this.lifecycle.getMyClasses(...args);
+  getMyClasses(...args: Parameters<ClassesCoreService['getMyClasses']>) {
+    return this.core.getMyClasses(...args);
   }
 
   getClassSchedules(

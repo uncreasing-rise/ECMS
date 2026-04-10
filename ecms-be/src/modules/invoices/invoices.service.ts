@@ -1,12 +1,16 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { CreateRefundDto } from './dto/create-refund.dto.js';
@@ -21,7 +25,10 @@ import { CreateRefundDto } from './dto/create-refund.dto.js';
  */
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private static readonly MAX_EXPORT_ROWS = 100000;
 
@@ -48,6 +55,23 @@ export class InvoicesService {
         },
         select: { id: true }, // Minimal select for better performance
       });
+
+      const enrollment = await this.prisma.enrollments.findUnique({
+        where: { id: enrollmentId },
+        select: { student_id: true },
+      });
+
+      if (enrollment?.student_id) {
+        await this.notifications.create({
+          user_id: enrollment.student_id,
+          type: NotificationType.INVOICE_CREATED,
+          title: 'Hoa don moi da duoc tao',
+          body: 'He thong vua tao hoa don hoc phi moi cho ban.',
+          ref_type: NotificationRefType.INVOICE,
+          ref_id: invoice.id,
+        });
+      }
+
       return invoice;
     } catch (error: unknown) {
       // Silently handle if invoice already exists (unique constraint)
@@ -77,6 +101,25 @@ export class InvoicesService {
         },
         select: { id: true },
       });
+
+      if (dto.enrollment_id) {
+        const enrollment = await this.prisma.enrollments.findUnique({
+          where: { id: dto.enrollment_id },
+          select: { student_id: true },
+        });
+
+        if (enrollment?.student_id) {
+          await this.notifications.create({
+            user_id: enrollment.student_id,
+            type: NotificationType.INVOICE_CREATED,
+            title: 'Hoa don moi da duoc tao',
+            body: 'He thong vua tao hoa don hoc phi moi cho ban.',
+            ref_type: NotificationRefType.INVOICE,
+            ref_id: invoice.id,
+          });
+        }
+      }
+
       return invoice;
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'P2002') {
@@ -513,21 +556,24 @@ export class InvoicesService {
    * PERF: Use transaction for atomicity + minimal selects
    */
   async recordPayment(dto: CreatePaymentDto, createdBy: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const invoice = await tx.invoices.findUnique({
         where: { id: dto.invoice_id },
-        select: { id: true, amount: true, paid_amount: true },
+        select: {
+          id: true,
+          amount: true,
+          paid_amount: true,
+          enrollments: { select: { student_id: true } },
+        },
       });
 
       if (!invoice) {
-        throw new NotFoundException('Không tìm thấy hóa đơn');
+        throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'invoice.not_found', message: 'Không tìm thấy hóa đơn' });
       }
 
       const totalPaid = Number(invoice.paid_amount) + dto.amount;
       if (totalPaid > Number(invoice.amount)) {
-        throw new BadRequestException(
-          `Số tiền thanh toán vượt quá công nợ (công nợ: ${Number(invoice.amount)}, đã thanh toán: ${Number(invoice.paid_amount)})`,
-        );
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'invoice.bad_request', message: `Số tiền thanh toán vượt quá công nợ (công nợ: ${Number(invoice.amount)}, đã thanh toán: ${Number(invoice.paid_amount)})`, });
       }
 
       const status = totalPaid >= Number(invoice.amount) ? 'paid' : 'partial';
@@ -541,12 +587,10 @@ export class InvoicesService {
       });
 
       if (updateResult.count !== 1) {
-        throw new ConflictException(
-          'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại',
-        );
+        throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'invoice.conflict', message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại', });
       }
 
-      return tx.payments.create({
+      const payment = await tx.payments.create({
         data: {
           id: randomUUID(),
           invoice_id: dto.invoice_id,
@@ -558,7 +602,25 @@ export class InvoicesService {
         },
         select: { id: true },
       });
+
+      return {
+        payment,
+        studentId: invoice.enrollments?.student_id ?? null,
+      };
     });
+
+    if (result.studentId) {
+      await this.notifications.create({
+        user_id: result.studentId,
+        type: NotificationType.INVOICE_PAYMENT_RECORDED,
+        title: 'Da ghi nhan thanh toan',
+        body: `He thong da ghi nhan thanh toan ${dto.amount} cho hoa don cua ban.`,
+        ref_type: NotificationRefType.INVOICE,
+        ref_id: dto.invoice_id,
+      });
+    }
+
+    return result.payment;
   }
 
   /**
@@ -566,20 +628,23 @@ export class InvoicesService {
    * PERF: Use transaction for atomicity + minimal selects
    */
   async createRefund(dto: CreateRefundDto, createdBy: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const invoice = await tx.invoices.findUnique({
         where: { id: dto.invoice_id },
-        select: { id: true, paid_amount: true, amount: true },
+        select: {
+          id: true,
+          paid_amount: true,
+          amount: true,
+          enrollments: { select: { student_id: true } },
+        },
       });
 
       if (!invoice) {
-        throw new NotFoundException('Không tìm thấy hóa đơn');
+        throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'invoice.not_found', message: 'Không tìm thấy hóa đơn' });
       }
 
       if (dto.amount > Number(invoice.paid_amount)) {
-        throw new BadRequestException(
-          `Số tiền hoàn phí vượt quá số tiền đã thanh toán (đã thanh toán: ${Number(invoice.paid_amount)})`,
-        );
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'invoice.bad_request', message: `Số tiền hoàn phí vượt quá số tiền đã thanh toán (đã thanh toán: ${Number(invoice.paid_amount)})`, });
       }
 
       const newPaidAmount = Math.max(
@@ -602,12 +667,10 @@ export class InvoicesService {
       });
 
       if (updateResult.count !== 1) {
-        throw new ConflictException(
-          'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại',
-        );
+        throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'invoice.conflict', message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại', });
       }
 
-      return tx.payments.create({
+      const refundPayment = await tx.payments.create({
         data: {
           id: randomUUID(),
           invoice_id: dto.invoice_id,
@@ -619,7 +682,25 @@ export class InvoicesService {
         },
         select: { id: true },
       });
+
+      return {
+        refundPayment,
+        studentId: invoice.enrollments?.student_id ?? null,
+      };
     });
+
+    if (result.studentId) {
+      await this.notifications.create({
+        user_id: result.studentId,
+        type: NotificationType.INVOICE_REFUNDED,
+        title: 'Da ghi nhan hoan phi',
+        body: `He thong da ghi nhan hoan phi ${dto.amount} cho hoa don cua ban.`,
+        ref_type: NotificationRefType.INVOICE,
+        ref_id: dto.invoice_id,
+      });
+    }
+
+    return result.refundPayment;
   }
 
   /**
@@ -644,3 +725,8 @@ export class InvoicesService {
     return date;
   }
 }
+
+
+
+
+

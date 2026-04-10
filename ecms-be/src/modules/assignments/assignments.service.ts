@@ -1,12 +1,17 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
-  BadRequestException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { Prisma, submissions } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
+import { RedisService } from '../../common/redis/redis.service';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 import {
   CreateAssignmentDto,
   RubricCriterionDto,
@@ -37,6 +42,7 @@ type FeedbackPayload = {
 export class AssignmentsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -51,7 +57,7 @@ export class AssignmentsService {
     });
 
     if (!classInfo) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'assignment.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     const metadata: AssignmentMetadata = {
@@ -93,10 +99,10 @@ export class AssignmentsService {
       enrolledStudents.map((student) =>
         this.notificationsService.create({
           user_id: student.student_id,
-          type: 'assignment_created',
+          type: NotificationType.ASSIGNMENT_CREATED,
           title: 'Bài tập mới',
           body: `Lớp ${classInfo.name ?? ''} vừa có bài tập mới: ${dto.title}`,
-          ref_type: 'assignment',
+          ref_type: NotificationRefType.ASSIGNMENT,
           ref_id: assignment.id,
         }),
       ),
@@ -157,9 +163,7 @@ export class AssignmentsService {
       !dto.submission_link &&
       (!dto.files || dto.files.length === 0)
     ) {
-      throw new BadRequestException(
-        'Cần ít nhất một dạng nộp bài: text, link hoặc file',
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: 'Cần ít nhất một dạng nộp bài: text, link hoặc file', });
     }
 
     const assignment = await this.prisma.assignments.findUnique({
@@ -174,11 +178,11 @@ export class AssignmentsService {
     });
 
     if (!assignment) {
-      throw new NotFoundException('Không tìm thấy bài tập');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'assignment.not_found', message: 'Không tìm thấy bài tập' });
     }
 
     if (assignment.due_at && assignment.due_at.getTime() < Date.now()) {
-      throw new BadRequestException('Đã quá hạn nộp bài');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: 'Đã quá hạn nộp bài' });
     }
 
     const enrollment = await this.prisma.enrollments.findFirst({
@@ -191,7 +195,7 @@ export class AssignmentsService {
     });
 
     if (!enrollment) {
-      throw new BadRequestException('Bạn không thuộc lớp học của bài tập này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: 'Bạn không thuộc lớp học của bài tập này' });
     }
 
     const latestSubmission = await this.prisma.submissions.findFirst({
@@ -204,7 +208,7 @@ export class AssignmentsService {
     });
 
     if (latestSubmission && !assignment.allow_resubmit) {
-      throw new BadRequestException('Bài tập này không cho phép nộp lại');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: 'Bài tập này không cho phép nộp lại' });
     }
 
     const contentPayload: SubmissionContent = {
@@ -230,6 +234,8 @@ export class AssignmentsService {
         submitted_at: true,
       },
     });
+
+    await this.invalidateTeacherDashboardByClass(assignment.class_id);
 
     return {
       ...submission,
@@ -261,7 +267,7 @@ export class AssignmentsService {
     });
 
     if (!assignment) {
-      throw new NotFoundException('Không tìm thấy bài tập');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'assignment.not_found', message: 'Không tìm thấy bài tập' });
     }
 
     const submissions = await this.prisma.submissions.findMany({
@@ -304,16 +310,14 @@ export class AssignmentsService {
     });
 
     if (!submission) {
-      throw new NotFoundException('Không tìm thấy bài nộp');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'assignment.not_found', message: 'Không tìm thấy bài nộp' });
     }
 
     const effectiveScore = this.resolveScore(dto);
     const maxScore = Number(submission.assignments.max_score ?? 10);
 
     if (effectiveScore !== undefined && effectiveScore > maxScore) {
-      throw new BadRequestException(
-        `Điểm không được vượt quá thang điểm ${maxScore}`,
-      );
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: `Điểm không được vượt quá thang điểm ${maxScore}`, });
     }
 
     const feedbackPayload: FeedbackPayload = {
@@ -339,12 +343,14 @@ export class AssignmentsService {
 
     await this.notificationsService.create({
       user_id: graded.student_id,
-      type: 'assignment_graded',
+      type: NotificationType.ASSIGNMENT_GRADED,
       title: 'Bài nộp đã được chấm',
       body: `Bài nộp cho bài tập \"${submission.assignments.title}\" đã có điểm và nhận xét mới.`,
-      ref_type: 'submission',
+      ref_type: NotificationRefType.SUBMISSION,
       ref_id: graded.id,
     });
+
+    await this.invalidateTeacherDashboardByClass(submission.assignments.class_id);
 
     return {
       ...this.toSubmissionResponse(graded),
@@ -372,14 +378,14 @@ export class AssignmentsService {
     });
 
     if (!submission) {
-      throw new NotFoundException('Không tìm thấy bài nộp');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'assignment.not_found', message: 'Không tìm thấy bài nộp' });
     }
 
     const isStudent =
       requester.roles?.includes('student') ?? requester.role === 'student';
 
     if (isStudent && requester.id !== submission.student_id) {
-      throw new BadRequestException('Bạn không có quyền xem bài nộp này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'assignment.bad_request', message: 'Bạn không có quyền xem bài nộp này' });
     }
 
     return {
@@ -451,4 +457,22 @@ export class AssignmentsService {
       return null;
     }
   }
+
+  private async invalidateTeacherDashboardByClass(classId: string) {
+    const classItem = await this.prisma.classes.findUnique({
+      where: { id: classId },
+      select: { teacher_id: true },
+    });
+
+    if (!classItem?.teacher_id) {
+      return;
+    }
+
+    await this.redis.invalidateTeacherDashboardCache(classItem.teacher_id);
+  }
 }
+
+
+
+
+

@@ -1,40 +1,43 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
   Injectable,
-  BadRequestException,
-  NotFoundException,
-  Optional,
+  Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
-import { DeviceTokensService } from '../../common/device-tokens/device-tokens.service';
-import { FirebaseService } from '../../common/firebase/firebase.service';
-import { NotificationsGateway } from '../../common/websocket/notifications.gateway';
+import { NotificationQueueService } from './notification-queue.service.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from './notification.constants.js';
 
 export interface CreateNotificationParams {
   user_id: string;
-  type: string;
+  type: NotificationType;
   title: string;
   body: string;
-  ref_type?: string;
+  ref_type?: NotificationRefType;
   ref_id?: string;
+  send_email?: boolean;
 }
 
 export interface NotificationQueryParams {
   user_id: string;
   skip?: number;
   take?: number;
-  ref_type?: string;
+  ref_type?: NotificationRefType;
   unread_only?: boolean;
 }
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
-    private prisma: PrismaService,
-    private deviceTokens: DeviceTokensService,
-    private firebase: FirebaseService,
-    @Optional() private notificationsGateway?: NotificationsGateway,
+    private readonly prisma: PrismaService,
+    private readonly notificationQueue: NotificationQueueService,
   ) {}
 
   // ─── Create Notification ──────────────────────
@@ -52,77 +55,26 @@ export class NotificationsService {
       },
     });
 
-    await this.sendPushNotification(params.user_id, params.title, params.body, {
-      type: params.type,
-      ref_type: params.ref_type,
-      ref_id: params.ref_id,
-    });
-
-    // Broadcast real-time notification via WebSocket
-    if (this.notificationsGateway) {
-      this.notificationsGateway.broadcastToUser(params.user_id, {
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        body: notification.body,
-        is_read: notification.is_read,
-        created_at: notification.created_at,
-      });
-    }
-
-    return notification;
-  }
-
-  // ─── Send Push Notification ───────────────────
-  private async sendPushNotification(
-    user_id: string,
-    title: string,
-    body: string,
-    data?: Record<string, string | null | undefined>,
-  ) {
     try {
-      // Get user's active FCM tokens
-      const fcm_tokens = await this.deviceTokens.getActiveFCMTokens(user_id);
-
-      if (fcm_tokens.length === 0) {
-        return; // User has no registered devices
-      }
-
-      // Clean up data object to exclude null/undefined values
-      const cleanData: Record<string, string> = {};
-      if (data) {
-        Object.entries(data).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            cleanData[key] = String(value);
-          }
-        });
-      }
-
-      // Send to all user's devices
-      if (fcm_tokens.length === 1) {
-        await this.firebase.sendToUser({
-          user_id,
-          title,
-          body,
-          fcm_token: fcm_tokens[0],
-          data: cleanData,
-        });
-      } else {
-        await this.firebase.sendMulticast({
-          user_id,
-          title,
-          body,
-          fcm_tokens,
-          data: cleanData,
-        });
-      }
+      await this.notificationQueue.enqueue({
+        notificationId: notification.id,
+        userId: params.user_id,
+        title: params.title,
+        body: params.body,
+        type: params.type,
+        refType: params.ref_type,
+        refId: params.ref_id,
+        sendEmail: params.send_email ?? false,
+        idempotencyKey: `notification:${notification.id}`,
+      });
     } catch (error) {
-      // Log error but don't throw - push is optional, DB notification is primary
-      console.error(
-        `Failed to send push notification to user ${user_id}:`,
+      this.logger.error(
+        `Failed to enqueue notification delivery for notification ${notification.id}`,
         error,
       );
     }
+
+    return notification;
   }
 
   // ─── Get Notifications ────────────────────────
@@ -171,11 +123,11 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new NotFoundException('Thông báo không tồn tại');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'notification.not_found', message: 'Thông báo không tồn tại' });
     }
 
     if (notification.user_id !== user_id) {
-      throw new BadRequestException('Không có quyền truy cập');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'notification.bad_request', message: 'Không có quyền truy cập' });
     }
 
     return notification;
@@ -276,3 +228,8 @@ export class NotificationsService {
     };
   }
 }
+
+
+
+
+

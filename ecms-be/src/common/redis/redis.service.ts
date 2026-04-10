@@ -15,6 +15,7 @@ type RedisBackend = {
     mode?: 'EX',
     ttlSeconds?: number,
   ): Promise<unknown>;
+  setNx(key: string, value: string, ttlSeconds: number): Promise<boolean>;
   get(key: string): Promise<string | null>;
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
@@ -43,6 +44,15 @@ class IoRedisClientAdapter implements RedisBackend {
 
   async get(key: string): Promise<string | null> {
     return this.redis.get(key);
+  }
+
+  async setNx(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.redis.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
   }
 
   async del(key: string): Promise<number> {
@@ -103,6 +113,19 @@ class UpstashRestClient implements RedisBackend {
   async get(key: string): Promise<string | null> {
     const data = await this.call(`/get/${encodeURIComponent(key)}`);
     return typeof data.result === 'string' ? data.result : null;
+  }
+
+  async setNx(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const encodedKey = encodeURIComponent(key);
+    const encodedValue = encodeURIComponent(value);
+    const data = await this.call(
+      `/set/${encodedKey}/${encodedValue}?NX=true&EX=${ttlSeconds}`,
+    );
+    return data?.result === 'OK';
   }
 
   async del(key: string): Promise<number> {
@@ -252,6 +275,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async cacheDel(key: string) {
     await this.client.del(key);
+  }
+
+  async invalidateTeacherDashboardCache(teacherId: string) {
+    await this.cacheDel(`portal:teacher:dashboard:${teacherId}`);
+  }
+
+  async invalidateParentOverviewCache(studentId: string) {
+    await this.cacheDel(`portal:parent:overview:${studentId}`);
+  }
+
+  async claimIdempotencyKey(key: string, ttlSeconds: number): Promise<boolean> {
+    return this.client.setNx(`idempotency:${key}`, '1', ttlSeconds);
+  }
+
+  async releaseIdempotencyKey(key: string) {
+    await this.client.del(`idempotency:${key}`);
   }
 
   private hashToken(token: string): string {

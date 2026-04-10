@@ -1,11 +1,16 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
-  BadRequestException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../notifications/notification.constants.js';
 
 interface GetMyClassesParams {
   studentId: string;
@@ -81,7 +86,10 @@ const DEFAULT_GRADE_WEIGHTS: GradeWeightConfig = {
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async getMyProfile(studentId: string) {
     const user = await this.loadStudentProfile(studentId);
@@ -103,7 +111,7 @@ export class StudentsService {
 
     if (params.status) {
       if (!STUDENT_STATUSES.has(params.status)) {
-        throw new BadRequestException('Trạng thái học viên không hợp lệ');
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Trạng thái học viên không hợp lệ' });
       }
 
       where.status = params.status;
@@ -405,7 +413,7 @@ export class StudentsService {
 
   async updateStudentStatus(studentId: string, status: string) {
     if (!STUDENT_STATUSES.has(status)) {
-      throw new BadRequestException('Trạng thái học viên không hợp lệ');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Trạng thái học viên không hợp lệ' });
     }
 
     const existing = await this.prisma.users.findUnique({
@@ -420,10 +428,10 @@ export class StudentsService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Không tìm thấy học sinh');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'student.not_found', message: 'Không tìm thấy học sinh' });
     }
 
-    return this.prisma.users.update({
+    const updated = await this.prisma.users.update({
       where: { id: studentId },
       data: { status },
       select: {
@@ -440,6 +448,21 @@ export class StudentsService {
         updated_at: true,
       },
     });
+
+    try {
+      await this.notifications.create({
+        user_id: studentId,
+        type: NotificationType.STUDENT_STATUS_CHANGED,
+        title: 'Trang thai tai khoan duoc cap nhat',
+        body: `Trang thai hoc vien cua ban da duoc doi thanh "${status}".`,
+        ref_type: NotificationRefType.STUDENT,
+        ref_id: studentId,
+      });
+    } catch {
+      // Status update should not fail because of notification issues.
+    }
+
+    return updated;
   }
 
   private async loadStudentProfile(studentId: string) {
@@ -470,7 +493,7 @@ export class StudentsService {
     });
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy học sinh');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'student.not_found', message: 'Không tìm thấy học sinh' });
     }
 
     return user;
@@ -616,7 +639,7 @@ export class StudentsService {
     });
 
     if (!enrollment) {
-      throw new BadRequestException('Học viên không thuộc lớp học này');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Học viên không thuộc lớp học này' });
     }
 
     const assignmentPercent = await this.calculateAssignmentPercent(
@@ -787,7 +810,7 @@ export class StudentsService {
     });
 
     if (!classInfo) {
-      throw new NotFoundException('Không tìm thấy lớp học');
+      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'student.not_found', message: 'Không tìm thấy lớp học' });
     }
 
     const enrollments = await this.prisma.enrollments.findMany({
@@ -1049,7 +1072,7 @@ export class StudentsService {
 
     const sum = merged.assignment + merged.exam + merged.attendance;
     if (Math.abs(sum - 1) > 0.0001) {
-      throw new BadRequestException('Tổng trọng số phải bằng 1');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Tổng trọng số phải bằng 1' });
     }
 
     return merged;
@@ -1163,3 +1186,8 @@ export class StudentsService {
     return Number(((presentCount / records.length) * 100).toFixed(2));
   }
 }
+
+
+
+
+

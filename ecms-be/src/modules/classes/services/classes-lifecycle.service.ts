@@ -1,6 +1,6 @@
+import { AppErrorCode } from '../../../common/api/app-error-code.enum.js';
+import { AppException } from '../../../common/api/app-exception.js';
 import {
-  BadRequestException,
-  ForbiddenException,
   Inject,
   Injectable,
   Optional,
@@ -8,19 +8,23 @@ import {
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
-import { ClassesCoreService } from '../classes.core.service.js';
+import { RedisService } from '../../../common/redis/redis.service';
 import { CreateClassDto } from '../dto/create-class.dto.js';
 import {
   CLASS_NOTIFICATION_PUBLISHER,
   type ClassNotificationPublisher,
 } from '../contracts/class-notification.publisher.js';
 import { type GetClassesParams } from '../contracts/classes-lifecycle.contract.js';
+import {
+  NotificationRefType,
+  NotificationType,
+} from '../../notifications/notification.constants.js';
 
 @Injectable()
 export class ClassesLifecycleService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly core: ClassesCoreService,
+    private readonly redis: RedisService,
     @Optional()
     @Inject(CLASS_NOTIFICATION_PUBLISHER)
     private readonly notificationPublisher?: ClassNotificationPublisher,
@@ -33,7 +37,7 @@ export class ClassesLifecycleService {
     });
 
     if (!course) {
-      throw new BadRequestException('course_id không tồn tại');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'course_id không tồn tại' });
     }
 
     if (dto.teacher_id) {
@@ -42,7 +46,7 @@ export class ClassesLifecycleService {
         select: { id: true },
       });
       if (!teacher) {
-        throw new BadRequestException('teacher_id không tồn tại');
+        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'teacher_id không tồn tại' });
       }
     }
 
@@ -67,12 +71,16 @@ export class ClassesLifecycleService {
     ) {
       await this.notificationPublisher.create({
         user_id: dto.teacher_id,
-        type: 'class_assigned_teacher',
+        type: NotificationType.CLASS_ASSIGNED_TEACHER,
         title: 'Bạn được phân công lớp mới',
         body: `Bạn được phân công phụ trách lớp: ${created.name ?? 'Lớp học mới'}`,
-        ref_type: 'class',
+        ref_type: NotificationRefType.CLASS,
         ref_id: created.id,
       });
+    }
+
+    if (created.teacher_id) {
+      await this.redis.invalidateTeacherDashboardCache(created.teacher_id);
     }
 
     return created;
@@ -153,48 +161,6 @@ export class ClassesLifecycleService {
     };
   }
 
-  getClassById(...args: Parameters<ClassesCoreService['getClassById']>) {
-    return this.core.getClassById(...args);
-  }
-
-  getClassStudents(
-    ...args: Parameters<ClassesCoreService['getClassStudents']>
-  ) {
-    return this.core.getClassStudents(...args);
-  }
-
-  getClassResources(
-    ...args: Parameters<ClassesCoreService['getClassResources']>
-  ) {
-    return this.core.getClassResources(...args);
-  }
-
-  createClassResource(
-    ...args: Parameters<ClassesCoreService['createClassResource']>
-  ) {
-    return this.core.createClassResource(...args);
-  }
-
-  updateClass(...args: Parameters<ClassesCoreService['updateClass']>) {
-    return this.core.updateClass(...args);
-  }
-
-  enrollStudent(...args: Parameters<ClassesCoreService['enrollStudent']>) {
-    return this.core.enrollStudent(...args);
-  }
-
-  unenrollStudent(...args: Parameters<ClassesCoreService['unenrollStudent']>) {
-    return this.core.unenrollStudent(...args);
-  }
-
-  deleteClass(...args: Parameters<ClassesCoreService['deleteClass']>) {
-    return this.core.deleteClass(...args);
-  }
-
-  getMyClasses(...args: Parameters<ClassesCoreService['getMyClasses']>) {
-    return this.core.getMyClasses(...args);
-  }
-
   private async hasRole(userId: string, roleName: string) {
     const row = await this.prisma.user_roles.findFirst({
       where: {
@@ -211,7 +177,12 @@ export class ClassesLifecycleService {
   private async ensureRole(userId: string, roles: string[]) {
     const checks = await Promise.all(roles.map((r) => this.hasRole(userId, r)));
     if (!checks.some(Boolean)) {
-      throw new ForbiddenException('Bạn không có quyền truy cập');
+      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn không có quyền truy cập' });
     }
   }
 }
+
+
+
+
+

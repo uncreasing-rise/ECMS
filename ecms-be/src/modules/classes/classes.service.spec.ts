@@ -5,6 +5,9 @@ describe('ClassesService facade', () => {
   const lifecycle = {
     getClasses: jest.fn(),
   };
+  const core = {
+    getClassById: jest.fn(),
+  };
   const schedules = {
     getClassSchedules: jest.fn(),
     getClassCalendar: jest.fn(),
@@ -21,6 +24,7 @@ describe('ClassesService facade', () => {
 
   const service = new ClassesService(
     lifecycle as never,
+    core as never,
     schedules as never,
     assignments as never,
     exams as never,

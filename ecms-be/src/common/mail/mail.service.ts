@@ -51,6 +51,31 @@ export class MailService {
     await this.send({ to: params.to, ...template });
   }
 
+  async sendNotificationEmail(params: {
+    to: string;
+    full_name?: string;
+    subject: string;
+    body: string;
+  }) {
+    const greeting = params.full_name
+      ? `Xin chao ${params.full_name},`
+      : 'Xin chao,';
+
+    const html = [
+      '<div style="font-family: Arial, sans-serif; line-height: 1.6;">',
+      `<p>${greeting}</p>`,
+      `<p>${params.body}</p>`,
+      '<p>Truy cap he thong ECMS de xem chi tiet.</p>',
+      '</div>',
+    ].join('');
+
+    await this.send({
+      to: params.to,
+      subject: params.subject,
+      html,
+    });
+  }
+
   private async send(params: { to: string; subject: string; html: string }) {
     if (!this.resend || !this.from) {
       this.logger.warn(

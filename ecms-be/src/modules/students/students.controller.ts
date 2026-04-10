@@ -1,5 +1,6 @@
+import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
+import { AppException } from '../../common/api/app-exception.js';
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -191,7 +192,7 @@ export class StudentsController {
         (value) => value !== undefined && Number.isNaN(value),
       )
     ) {
-      throw new BadRequestException('Trọng số phải là số hợp lệ');
+      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Trọng số phải là số hợp lệ' });
     }
 
     return this.studentsService.computeAndSaveClassFinalScore({
@@ -226,3 +227,8 @@ export class StudentsController {
     return this.studentsService.updateStudentStatus(id, dto.status);
   }
 }
+
+
+
+
+

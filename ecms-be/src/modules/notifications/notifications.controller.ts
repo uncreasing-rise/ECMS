@@ -18,6 +18,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service.js';
+import { NotificationRefType } from './notification.constants.js';
 import { DeviceTokensService } from '../../common/device-tokens/device-tokens.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -72,7 +73,7 @@ export class NotificationsController {
       user_id: user.id,
       skip: skip ? parseInt(skip, 10) : 0,
       take: take ? parseInt(take, 10) : 20,
-      ref_type,
+      ref_type: ref_type as NotificationRefType | undefined,
       unread_only: unread_only === 'true',
     });
   }
