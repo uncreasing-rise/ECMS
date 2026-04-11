@@ -9,7 +9,10 @@ export const options = {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: __ENV.RAMP_UP || '2m', target: Number(__ENV.PEAK_VUS || 200) },
+        {
+          duration: __ENV.RAMP_UP || '2m',
+          target: Number(__ENV.PEAK_VUS || 200),
+        },
         { duration: __ENV.HOLD || '5m', target: Number(__ENV.PEAK_VUS || 200) },
         { duration: __ENV.RAMP_DOWN || '1m', target: 0 },
       ],

@@ -16,8 +16,11 @@ export class PrismaService
     if (!connectionString) {
       throw new Error('DATABASE_URL is missing');
     }
-    const maxConnections = parseInt(config.get<string>('DB_MAX_POOL_SIZE') || '100', 10);
-    const pool = new Pool({ 
+    const maxConnections = parseInt(
+      config.get<string>('DB_MAX_POOL_SIZE') || '100',
+      10,
+    );
+    const pool = new Pool({
       connectionString,
       max: maxConnections,
       idleTimeoutMillis: 30000,

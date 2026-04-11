@@ -1,15 +1,18 @@
 # Portal and Exam SRE Checklist
 
 ## API performance targets
+
 - Normal API P95 < 300ms.
 - Exam API P95 < 500ms with stability prioritized.
 
 ## Redis cache policy
+
 - Cache teacher dashboard 60s: key `portal:teacher:dashboard:{teacherId}`.
 - Cache parent child overview 60s: key `portal:parent:overview:{studentId}`.
 - Invalidate cache after grade/attendance/material updates when needed.
 
 ## Database and API reliability
+
 - Add DB index review for high-frequency paths:
   - `submissions(graded_at, assignment_id)`
   - `class_schedules(class_id, starts_at)`
@@ -19,6 +22,7 @@
 - Limit large list endpoints with pagination defaults.
 
 ## Load test before go-live
+
 - Requirement: at least 500 concurrent exam takers.
 - Scenarios:
   - Start session burst.
@@ -28,6 +32,7 @@
 - Gate: fail release if exam API error rate > 1% or P95 > 500ms.
 
 ## Uptime and recovery
+
 - Target uptime >= 99.5%.
 - Recovery objective: restart < 5 minutes.
 - Required controls:
@@ -37,6 +42,7 @@
   - Runbook for Redis outage fallback and DB failover.
 
 ## Observability
+
 - Structured logs for all exam session transitions.
 - Track anti-cheat violations and alert on abnormal spikes.
 - Dashboards:

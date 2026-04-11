@@ -18,10 +18,7 @@ This guide describes how frontend integrates with the chat system (REST + Socket
   "id": "b5f4a67d-8f58-4874-9621-769694a80f52",
   "type": "direct",
   "name": null,
-  "member_ids": [
-    "user-a-uuid",
-    "user-b-uuid"
-  ],
+  "member_ids": ["user-a-uuid", "user-b-uuid"],
   "created_by": "user-a-uuid",
   "created_at": "2026-04-10T08:00:00.000Z",
   "updated_at": "2026-04-10T08:05:00.000Z",
@@ -94,6 +91,7 @@ Response: `Conversation[]`
 Response: `Message[]`
 
 Note:
+
 - When messages are fetched, server auto-marks the latest fetched message as `delivered` for current user.
 
 ### 3.5 Send message
@@ -111,6 +109,7 @@ Request:
 Response: `Message`
 
 Server behavior:
+
 - Sender: `unread_count = 0`, `last_read = last_delivered = sent message`
 - Other members: `unread_count += 1`
 
@@ -159,6 +158,7 @@ Response:
 ```
 
 Server behavior:
+
 - `unread_count` resets to `0` for current user.
 
 ### 3.8 Total unread count
@@ -221,6 +221,7 @@ Payload:
 ```
 
 Suggested client behavior:
+
 - On `chat:conversation.updated`, call `GET /chat/conversations` for fresh `my_state.unread_count` and last preview/time.
 
 ## 5) Suggested Frontend Flow
@@ -246,6 +247,7 @@ Suggested client behavior:
 ## 6) Error handling
 
 All errors follow backend unified envelope. For chat, common keys include:
+
 - `chat.bad_request`
 - `chat.not_found`
 - `chat.forbidden`

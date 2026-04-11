@@ -37,7 +37,9 @@ import { ChatModule } from './modules/chat/chat.module.js';
         const redisUrl = config.get<string>('REDIS_URL');
         return {
           throttlers: [{ ttl: 10000, limit: 100 }],
-          storage: redisUrl ? new ThrottlerStorageRedisService(redisUrl) : undefined,
+          storage: redisUrl
+            ? new ThrottlerStorageRedisService(redisUrl)
+            : undefined,
         };
       },
     }),
