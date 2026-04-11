@@ -1,7 +1,12 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyCompress from '@fastify/compress';
 import { AppModule } from './app.module';
 import { createClient } from 'redis';
 import { RedisIoAdapter } from './common/websocket/redis-io.adapter';
@@ -11,10 +16,21 @@ import { AppException } from './common/api/app-exception.js';
 import { AppErrorCode } from './common/api/app-error-code.enum.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.enableShutdownHooks();
   const isProduction = process.env.NODE_ENV === 'production';
   const enableSwagger = !isProduction || process.env.ENABLE_SWAGGER === 'true';
+
+  const trustProxyRaw = process.env.TRUST_PROXY;
+  const trustProxy = trustProxyRaw
+    ? Number.isNaN(Number(trustProxyRaw))
+      ? trustProxyRaw === 'true'
+      : Number(trustProxyRaw)
+    : isProduction;
+
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ trustProxy }),
+  );
+  app.enableShutdownHooks();
 
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
@@ -25,20 +41,12 @@ async function bootstrap() {
     app.useWebSocketAdapter(new RedisIoAdapter(app, pubClient, subClient));
   }
 
-  const trustProxyRaw = process.env.TRUST_PROXY;
-  const trustProxy = trustProxyRaw
-    ? Number.isNaN(Number(trustProxyRaw))
-      ? trustProxyRaw === 'true'
-      : Number(trustProxyRaw)
-    : isProduction;
-  app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  await app.register(fastifyCompress);
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: false,
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
-    }),
-  );
+  await app.register(fastifyHelmet, {
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  });
 
   const corsOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
