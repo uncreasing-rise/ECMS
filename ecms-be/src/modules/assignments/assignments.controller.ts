@@ -69,7 +69,10 @@ export class AssignmentsController {
     @Param('assignmentId') assignmentId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.assignmentsService.getMySubmissionHistory(assignmentId, user.id);
+    return this.assignmentsService.getMySubmissionHistory(
+      assignmentId,
+      user.id,
+    );
   }
 
   @Get('items/:assignmentId/submissions')

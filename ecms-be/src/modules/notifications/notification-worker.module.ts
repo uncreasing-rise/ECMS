@@ -21,6 +21,10 @@ import { NotificationRealtimeBus } from './notification-realtime.bus.js';
     FirebaseModule,
     DeviceTokensModule,
   ],
-  providers: [NotificationDeliveryExecutor, NotificationWorkerService, NotificationRealtimeBus],
+  providers: [
+    NotificationDeliveryExecutor,
+    NotificationWorkerService,
+    NotificationRealtimeBus,
+  ],
 })
 export class NotificationWorkerModule {}

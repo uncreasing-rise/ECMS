@@ -1,8 +1,6 @@
 import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
 import { AppException } from '../../common/api/app-exception.js';
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -23,6 +21,8 @@ export interface GetCoursesParams {
 
 @Injectable()
 export class CoursesService {
+  private readonly logger = new Logger(CoursesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -64,7 +64,11 @@ export class CoursesService {
     });
 
     if (!existing) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'course.not_found',
+        message: 'Không tìm thấy khóa học',
+      });
     }
 
     const updated = await this.prisma.courses.update({
@@ -101,7 +105,11 @@ export class CoursesService {
     });
 
     if (!existing) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'course.not_found',
+        message: 'Không tìm thấy khóa học',
+      });
     }
 
     if (existing.is_active === false) {
@@ -118,7 +126,10 @@ export class CoursesService {
       },
     });
 
-    await this.notifyTeachersCourseDeactivated(deactivated.id, deactivated.name);
+    await this.notifyTeachersCourseDeactivated(
+      deactivated.id,
+      deactivated.name,
+    );
 
     return deactivated;
   }
@@ -189,13 +200,20 @@ export class CoursesService {
     });
 
     if (!course) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'course.not_found', message: 'Không tìm thấy khóa học' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'course.not_found',
+        message: 'Không tìm thấy khóa học',
+      });
     }
 
     return course;
   }
 
-  private async notifyAdminsCourseCreated(courseId: string, courseName: string) {
+  private async notifyAdminsCourseCreated(
+    courseId: string,
+    courseName: string,
+  ) {
     try {
       const admins = await this.prisma.user_roles.findMany({
         where: {
@@ -223,12 +241,19 @@ export class CoursesService {
           ref_id: courseId,
         })),
       );
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Failed to notify admins of course creation: ${courseId}`,
+        error,
+      );
       // Course creation must not fail because notification delivery failed.
     }
   }
 
-  private async notifyTeachersCourseUpdated(courseId: string, courseName: string) {
+  private async notifyTeachersCourseUpdated(
+    courseId: string,
+    courseName: string,
+  ) {
     try {
       const classes = await this.prisma.classes.findMany({
         where: {
@@ -243,7 +268,11 @@ export class CoursesService {
       });
 
       const teacherIds = Array.from(
-        new Set(classes.map((item) => item.teacher_id).filter((id): id is string => Boolean(id))),
+        new Set(
+          classes
+            .map((item) => item.teacher_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
       );
 
       if (!teacherIds.length) {
@@ -260,7 +289,11 @@ export class CoursesService {
           ref_id: courseId,
         })),
       );
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Failed to notify teachers of course update: ${courseId}`,
+        error,
+      );
       // Course update must not fail because notification delivery failed.
     }
   }
@@ -283,7 +316,11 @@ export class CoursesService {
       });
 
       const teacherIds = Array.from(
-        new Set(classes.map((item) => item.teacher_id).filter((id): id is string => Boolean(id))),
+        new Set(
+          classes
+            .map((item) => item.teacher_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
       );
 
       if (!teacherIds.length) {
@@ -300,13 +337,12 @@ export class CoursesService {
           ref_id: courseId,
         })),
       );
-    } catch {
+    } catch (error) {
+      this.logger.error(
+        `Failed to notify teachers of course deactivation: ${courseId}`,
+        error,
+      );
       // Course deactivation must not fail because notification delivery failed.
     }
   }
 }
-
-
-
-
-

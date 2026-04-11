@@ -36,14 +36,16 @@ export function resolveMessage(
 ): string {
   const lang = catalog[locale] ?? catalog.vi;
   const fallback = catalog.vi;
-  const raw = (lang as Record<string, string>)[key] ?? fallback[key as MessageKey] ?? key;
+  const raw =
+    (lang as Record<string, string>)[key] ?? fallback[key as MessageKey] ?? key;
 
   if (!params) {
     return raw;
   }
 
   return Object.entries(params).reduce(
-    (acc, [k, v]) => acc.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v)),
+    (acc, [k, v]) =>
+      acc.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v)),
     raw,
   );
 }

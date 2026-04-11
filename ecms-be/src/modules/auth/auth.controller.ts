@@ -66,10 +66,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Gửi lại email xác nhận' })
-  resendVerification(
-    @Body() dto: ResendVerificationDto,
-    @Req() req: Request,
-  ) {
+  resendVerification(@Body() dto: ResendVerificationDto, @Req() req: Request) {
     return this.authService.resendVerification(dto.email, req.ip ?? '');
   }
 

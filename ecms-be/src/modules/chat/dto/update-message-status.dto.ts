@@ -3,7 +3,8 @@ import { IsOptional, IsUUID } from 'class-validator';
 
 export class UpdateMessageStatusDto {
   @ApiPropertyOptional({
-    description: 'Latest message id client has delivered/read in this conversation',
+    description:
+      'Latest message id client has delivered/read in this conversation',
   })
   @IsOptional()
   @IsUUID()

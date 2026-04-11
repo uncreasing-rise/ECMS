@@ -8,6 +8,10 @@ import {
   Patch,
   Query,
   UseGuards,
+  ParseIntPipe,
+  ParseBoolPipe,
+  ParseFloatPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -22,13 +26,19 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { StudentsService } from './students.service';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { UpdateStudentStatusDto } from './dto/update-student-status.dto';
+import { StudentsAnalyticsService } from './students-analytics.service';
+import { StudentsAcademicService } from './students-academic.service';
 
 @ApiTags('Students')
 @Controller('students')
 @UseGuards(AuthGuard)
 @ApiBearerAuth()
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    private readonly studentsAnalyticsService: StudentsAnalyticsService,
+    private readonly studentsAcademicService: StudentsAcademicService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Lấy hồ sơ học sinh hiện tại' })
@@ -39,7 +49,7 @@ export class StudentsController {
   @Get('me/dashboard')
   @ApiOperation({ summary: 'Tổng quan học sinh' })
   getDashboard(@CurrentUser() user: AuthenticatedUser) {
-    return this.studentsService.getDashboard(user.id);
+    return this.studentsAnalyticsService.getDashboard(user.id);
   }
 
   @Get('me/classes')
@@ -50,33 +60,33 @@ export class StudentsController {
   getMyClasses(
     @CurrentUser() user: AuthenticatedUser,
     @Query('status') status?: string,
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number = 0,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number = 20,
   ) {
     return this.studentsService.getMyClasses({
       studentId: user.id,
       status,
-      skip: skip ? parseInt(skip, 10) : 0,
-      take: take ? parseInt(take, 10) : 20,
+      skip,
+      take,
     });
   }
 
   @Get('me/attendance/summary')
   @ApiOperation({ summary: 'Tổng hợp điểm danh theo lớp' })
   getAttendanceSummary(@CurrentUser() user: AuthenticatedUser) {
-    return this.studentsService.getAttendanceSummary(user.id);
+    return this.studentsAcademicService.getAttendanceSummary(user.id);
   }
 
   @Get('me/progress')
   @ApiOperation({ summary: 'FR-LMS-020: Theo dõi tiến độ học tập' })
   getMyLearningProgress(@CurrentUser() user: AuthenticatedUser) {
-    return this.studentsService.getMyLearningProgress(user.id);
+    return this.studentsAnalyticsService.getMyLearningProgress(user.id);
   }
 
   @Get('me/gradebook')
   @ApiOperation({ summary: 'FR-LMS-022: Bảng điểm học viên và so sánh lớp' })
   getMyGradeBook(@CurrentUser() user: AuthenticatedUser) {
-    return this.studentsService.getStudentGradeBook(user.id);
+    return this.studentsAcademicService.getStudentGradeBook(user.id);
   }
 
   @Get('me/grades')
@@ -111,18 +121,19 @@ export class StudentsController {
     @Query('status') status?: string,
     @Query('class_id') classId?: string,
     @Query('course_id') courseId?: string,
-    @Query('lead_only') leadOnly?: string,
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
+    @Query('lead_only', new DefaultValuePipe(false), ParseBoolPipe)
+    leadOnly: boolean = false,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number = 0,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number = 20,
   ) {
     return this.studentsService.getStudents({
       search,
       status,
       classId,
       courseId,
-      leadOnly: leadOnly === 'true',
-      skip: skip ? parseInt(skip, 10) : 0,
-      take: take ? parseInt(take, 10) : 20,
+      leadOnly,
+      skip,
+      take,
     });
   }
 
@@ -139,16 +150,16 @@ export class StudentsController {
     @Query('search') search?: string,
     @Query('class_id') classId?: string,
     @Query('course_id') courseId?: string,
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number = 0,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number = 20,
   ) {
     return this.studentsService.getStudents({
       search,
       classId,
       courseId,
       leadOnly: true,
-      skip: skip ? parseInt(skip, 10) : 0,
-      take: take ? parseInt(take, 10) : 20,
+      skip,
+      take,
     });
   }
 
@@ -177,31 +188,20 @@ export class StudentsController {
   recalculateFinalScore(
     @Param('id') studentId: string,
     @Param('classId') classId: string,
-    @Query('assignment_weight') assignmentWeight?: string,
-    @Query('exam_weight') examWeight?: string,
-    @Query('attendance_weight') attendanceWeight?: string,
+    @Query('assignment_weight', new DefaultValuePipe(0.4), ParseFloatPipe)
+    assignmentWeight: number,
+    @Query('exam_weight', new DefaultValuePipe(0.5), ParseFloatPipe)
+    examWeight: number,
+    @Query('attendance_weight', new DefaultValuePipe(0.1), ParseFloatPipe)
+    attendanceWeight: number,
   ) {
-    const assignment =
-      assignmentWeight !== undefined ? Number(assignmentWeight) : undefined;
-    const exam = examWeight !== undefined ? Number(examWeight) : undefined;
-    const attendance =
-      attendanceWeight !== undefined ? Number(attendanceWeight) : undefined;
-
-    if (
-      [assignment, exam, attendance].some(
-        (value) => value !== undefined && Number.isNaN(value),
-      )
-    ) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'student.bad_request', message: 'Trọng số phải là số hợp lệ' });
-    }
-
-    return this.studentsService.computeAndSaveClassFinalScore({
+    return this.studentsAcademicService.computeAndSaveClassFinalScore({
       studentId,
       classId,
       weights: {
-        assignment,
-        exam,
-        attendance,
+        assignment: assignmentWeight,
+        exam: examWeight,
+        attendance: attendanceWeight,
       },
     });
   }
@@ -213,7 +213,7 @@ export class StudentsController {
     summary: 'FR-LMS-023: Báo cáo học tập theo lớp và từng học viên',
   })
   getClassLearningReport(@Param('classId') classId: string) {
-    return this.studentsService.getClassLearningReport(classId);
+    return this.studentsAnalyticsService.getClassLearningReport(classId);
   }
 
   @Patch('id/:id/status')
@@ -227,8 +227,3 @@ export class StudentsController {
     return this.studentsService.updateStudentStatus(id, dto.status);
   }
 }
-
-
-
-
-

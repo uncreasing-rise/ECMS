@@ -33,10 +33,15 @@ export class NotificationRealtimeBus implements OnModuleDestroy {
       return;
     }
 
-    await client.publish(NOTIFICATION_REALTIME_CHANNEL, JSON.stringify(message));
+    await client.publish(
+      NOTIFICATION_REALTIME_CHANNEL,
+      JSON.stringify(message),
+    );
   }
 
-  async subscribe(handler: (message: NotificationRealtimeMessage) => void | Promise<void>) {
+  async subscribe(
+    handler: (message: NotificationRealtimeMessage) => void | Promise<void>,
+  ) {
     if (this.isDisabled()) {
       return;
     }
@@ -51,7 +56,10 @@ export class NotificationRealtimeBus implements OnModuleDestroy {
         const parsed = JSON.parse(payload) as NotificationRealtimeMessage;
         await handler(parsed);
       } catch (error) {
-        this.logger.error('Failed to process realtime notification payload', error);
+        this.logger.error(
+          'Failed to process realtime notification payload',
+          error,
+        );
       }
     });
   }

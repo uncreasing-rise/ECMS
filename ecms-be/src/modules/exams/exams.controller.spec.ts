@@ -41,13 +41,10 @@ describe('ExamsController', () => {
       roles: ['teacher'],
     };
 
-    const result = await controller.createQuestion(
-      teacher,
-      {
-        question_format: 'mcq',
-        content: 'What is 2 + 2?',
-      },
-    );
+    const result = await controller.createQuestion(teacher, {
+      question_format: 'mcq',
+      content: 'What is 2 + 2?',
+    });
 
     expect(result).toEqual({ id: 'q-1' });
     expect(mockExamsService.createQuestion).toHaveBeenCalledWith('teacher-1', {
@@ -64,10 +61,10 @@ describe('ExamsController', () => {
       roles: ['teacher'],
     };
 
-    const result = await controller.createAutoExam(
-      teacher,
-      { title: 'Auto Test', matrix: [{ subject: 'Math', count: 10 }] },
-    );
+    const result = await controller.createAutoExam(teacher, {
+      title: 'Auto Test',
+      matrix: [{ subject: 'Math', count: 10 }],
+    });
 
     expect(result).toEqual({ id: 'e-1' });
     expect(mockExamsService.createAutoExam).toHaveBeenCalled();

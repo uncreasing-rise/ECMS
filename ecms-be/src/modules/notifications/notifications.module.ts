@@ -8,7 +8,11 @@ import { NotificationsCleanupService } from './notifications-cleanup.service.js'
 
 @Module({
   imports: [PrismaModule, DeviceTokensModule],
-  providers: [NotificationsService, NotificationQueueService, NotificationsCleanupService],
+  providers: [
+    NotificationsService,
+    NotificationQueueService,
+    NotificationsCleanupService,
+  ],
   controllers: [NotificationsController],
   exports: [NotificationsService],
 })

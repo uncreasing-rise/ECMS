@@ -23,9 +23,7 @@ describe('date-query pipes', () => {
     it('throws for invalid input', () => {
       const pipe = new OptionalDatePipe('from_date');
 
-      expect(() => pipe.transform('not-a-date')).toThrow(
-        BadRequestException,
-      );
+      expect(() => pipe.transform('not-a-date')).toThrow(BadRequestException);
     });
   });
 

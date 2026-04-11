@@ -41,7 +41,11 @@ export class ChatController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateGroupConversationDto,
   ) {
-    return this.chatService.createGroupConversation(user.id, dto.name, dto.member_ids);
+    return this.chatService.createGroupConversation(
+      user.id,
+      dto.name,
+      dto.member_ids,
+    );
   }
 
   @Get('conversations')

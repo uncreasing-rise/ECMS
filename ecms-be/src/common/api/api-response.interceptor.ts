@@ -11,9 +11,10 @@ import { ApiResponseEnvelope } from './api-response.types.js';
 import { resolveLocaleFromHeader, resolveMessage } from './message-catalog.js';
 
 @Injectable()
-export class ApiResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponseEnvelope<T>>
-{
+export class ApiResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponseEnvelope<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler<T>,

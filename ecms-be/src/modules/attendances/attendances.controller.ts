@@ -14,10 +14,11 @@ import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface.js';
+import { ensureStudentSelfAccess } from '../../common/helpers/request-validation.helper.js';
 import {
-  ensureStudentSelfAccess,
-} from '../../common/helpers/request-validation.helper.js';
-import { OptionalDatePipe, RequiredDatePipe } from '../../common/pipes/date-query.pipe.js';
+  OptionalDatePipe,
+  RequiredDatePipe,
+} from '../../common/pipes/date-query.pipe.js';
 import { AttendancesService } from './attendances.service.js';
 import { AcceptMakeupSessionDto } from './dto/accept-makeup-session.dto.js';
 import { RecordAttendanceDto } from './dto/record-attendance.dto.js';
@@ -134,7 +135,11 @@ export class AttendancesController {
     @Query('class_id') classId: string,
   ) {
     if (!classId) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'attendance.bad_request', message: 'class_id là bắt buộc' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'attendance.bad_request',
+        message: 'class_id là bắt buộc',
+      });
     }
 
     const count = await this.attendancesService.getConsecutiveAbsenceCount(
@@ -195,8 +200,3 @@ export class AttendancesController {
     return this.attendancesService.getStudentMakeupSessions(studentId);
   }
 }
-
-
-
-
-

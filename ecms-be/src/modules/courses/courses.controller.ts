@@ -6,6 +6,9 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseBoolPipe,
+  ParseIntPipe,
+  DefaultValuePipe,
   Patch,
   Post,
   Query,
@@ -39,15 +42,16 @@ export class CoursesController {
   @ApiQuery({ name: 'take', required: false, type: Number })
   getCourses(
     @Query('search') search?: string,
-    @Query('include_inactive') includeInactive?: string,
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
+    @Query('include_inactive', new DefaultValuePipe(false), ParseBoolPipe)
+    includeInactive: boolean = false,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number = 0,
+    @Query('take', new DefaultValuePipe(20), ParseIntPipe) take: number = 20,
   ) {
     return this.coursesService.getCourses({
       search,
-      includeInactive: includeInactive === 'true',
-      skip: skip ? parseInt(skip, 10) : 0,
-      take: take ? parseInt(take, 10) : 20,
+      includeInactive,
+      skip,
+      take,
     });
   }
 

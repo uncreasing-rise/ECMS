@@ -132,11 +132,19 @@ export class DeviceTokensService {
     });
 
     if (!token) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'error.not_found', message: 'Device token not found' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'error.not_found',
+        message: 'Device token not found',
+      });
     }
 
     if (token.user_id !== user_id) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'error.bad_request', message: "Cannot revoke other user's token" });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'error.bad_request',
+        message: "Cannot revoke other user's token",
+      });
     }
 
     await this.prisma.device_tokens.update({
@@ -184,8 +192,3 @@ export class DeviceTokensService {
     };
   }
 }
-
-
-
-
-

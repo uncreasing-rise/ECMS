@@ -158,9 +158,7 @@ export class ChatService {
       take: safeLimit,
     });
 
-    const messages = rows
-      .reverse()
-      .map((row) => this.toMessageDto(row));
+    const messages = rows.reverse().map((row) => this.toMessageDto(row));
 
     if (messages.length > 0) {
       await this.markDelivered(
@@ -173,7 +171,11 @@ export class ChatService {
     return messages;
   }
 
-  async sendMessage(currentUserId: string, conversationId: string, content: string) {
+  async sendMessage(
+    currentUserId: string,
+    conversationId: string,
+    content: string,
+  ) {
     const membership = await this.assertConversationMember(
       currentUserId,
       conversationId,
@@ -277,7 +279,11 @@ export class ChatService {
     return { delivered: true, message_id: targetMessage };
   }
 
-  async markRead(currentUserId: string, conversationId: string, messageId?: string) {
+  async markRead(
+    currentUserId: string,
+    conversationId: string,
+    messageId?: string,
+  ) {
     await this.assertConversationMember(currentUserId, conversationId);
 
     const targetMessage =
@@ -338,7 +344,10 @@ export class ChatService {
     }
   }
 
-  private async assertConversationMember(currentUserId: string, conversationId: string) {
+  private async assertConversationMember(
+    currentUserId: string,
+    conversationId: string,
+  ) {
     const membership = await this.prisma.chat_conversation_members.findUnique({
       where: {
         conversation_id_user_id: {
@@ -385,7 +394,9 @@ export class ChatService {
     },
     currentUserId: string,
   ): ChatConversation {
-    const mine = conversation.chat_members.find((m) => m.user_id === currentUserId);
+    const mine = conversation.chat_members.find(
+      (m) => m.user_id === currentUserId,
+    );
 
     return {
       id: conversation.id,

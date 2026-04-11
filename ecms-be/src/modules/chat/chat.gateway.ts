@@ -100,19 +100,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     message: ChatMessage,
     memberUserIds: string[],
   ) {
-    this.server.to(`conversation:${conversationId}`).emit('chat:message', message);
+    this.server
+      .to(`conversation:${conversationId}`)
+      .emit('chat:message', message);
     memberUserIds.forEach((userId) => {
       this.server.to(`user:${userId}`).emit('chat:message', message);
     });
   }
 
-  broadcastConversationUpdated(conversationId: string, memberUserIds: string[]) {
+  broadcastConversationUpdated(
+    conversationId: string,
+    memberUserIds: string[],
+  ) {
     const payload = { conversation_id: conversationId };
     this.server
       .to(`conversation:${conversationId}`)
       .emit('chat:conversation.updated', payload);
     memberUserIds.forEach((userId) => {
-      this.server.to(`user:${userId}`).emit('chat:conversation.updated', payload);
+      this.server
+        .to(`user:${userId}`)
+        .emit('chat:conversation.updated', payload);
     });
   }
 }

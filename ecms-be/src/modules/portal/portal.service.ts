@@ -1,8 +1,6 @@
 import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
 import { AppException } from '../../common/api/app-exception.js';
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -201,7 +199,11 @@ export class PortalService {
     });
 
     if (!classInfo) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'portal.not_found', message: 'Không tìm thấy lớp học hoặc không có quyền truy cập', });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'portal.not_found',
+        message: 'Không tìm thấy lớp học hoặc không có quyền truy cập',
+      });
     }
 
     const [students, schedules, assignments] = await Promise.all([
@@ -324,7 +326,11 @@ export class PortalService {
     });
 
     if (!moduleInfo) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'portal.not_found', message: 'Không tìm thấy module' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'portal.not_found',
+        message: 'Không tìm thấy module',
+      });
     }
 
     const classInfo = await this.prisma.classes.findUnique({
@@ -333,7 +339,11 @@ export class PortalService {
     });
 
     if (!classInfo || classInfo.course_id !== moduleInfo.course_id) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'portal.bad_request', message: 'Module không thuộc khóa học của lớp này' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'portal.bad_request',
+        message: 'Module không thuộc khóa học của lớp này',
+      });
     }
 
     const lesson = await this.prisma.lessons.create({
@@ -453,11 +463,19 @@ export class PortalService {
     });
 
     if (!submission) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'portal.not_found', message: 'Không tìm thấy bài nộp' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'portal.not_found',
+        message: 'Không tìm thấy bài nộp',
+      });
     }
 
     if (submission.assignments.classes.teacher_id !== teacherId) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'portal.bad_request', message: 'Bạn không có quyền chấm bài này' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'portal.bad_request',
+        message: 'Bạn không có quyền chấm bài này',
+      });
     }
 
     const graded = await this.prisma.submissions.update({
@@ -645,7 +663,11 @@ export class PortalService {
       ]);
 
     if (!student) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'portal.not_found', message: 'Không tìm thấy học sinh' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'portal.not_found',
+        message: 'Không tìm thấy học sinh',
+      });
     }
 
     const totalAttendance = attendance.length;
@@ -726,7 +748,11 @@ export class PortalService {
     this.assertParentActor(actor);
 
     if (!dto.to_user_id || !dto.message) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'portal.bad_request', message: 'to_user_id và message là bắt buộc' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'portal.bad_request',
+        message: 'to_user_id và message là bắt buộc',
+      });
     }
 
     return this.notifications.create({
@@ -757,7 +783,11 @@ export class PortalService {
     });
 
     if (!invoice) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'portal.not_found', message: 'Không tìm thấy hóa đơn của học sinh này' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'portal.not_found',
+        message: 'Không tìm thấy hóa đơn của học sinh này',
+      });
     }
 
     const paid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -779,7 +809,11 @@ export class PortalService {
     });
 
     if (!found) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'portal.bad_request', message: 'Không có quyền truy cập lớp học này' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'portal.bad_request',
+        message: 'Không có quyền truy cập lớp học này',
+      });
     }
   }
 
@@ -787,7 +821,11 @@ export class PortalService {
     const allowed =
       actor.roles.includes('parent') || actor.roles.includes('admin');
     if (!allowed) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'portal.bad_request', message: 'Tính năng này chỉ dành cho phụ huynh' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'portal.bad_request',
+        message: 'Tính năng này chỉ dành cho phụ huynh',
+      });
     }
   }
 
@@ -795,8 +833,3 @@ export class PortalService {
     return JSON.parse(cached) as T;
   }
 }
-
-
-
-
-

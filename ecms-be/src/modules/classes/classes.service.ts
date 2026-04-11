@@ -29,7 +29,9 @@ export class ClassesService {
     return this.core.getClassById(...args);
   }
 
-  getClassStudents(...args: Parameters<ClassesCoreService['getClassStudents']>) {
+  getClassStudents(
+    ...args: Parameters<ClassesCoreService['getClassStudents']>
+  ) {
     return this.core.getClassStudents(...args);
   }
 

@@ -169,7 +169,11 @@ export class ExamsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: AssignExamClassesDto,
   ) {
-    return this.examsService.assignExamToClasses(examId, dto.class_ids, user.id);
+    return this.examsService.assignExamToClasses(
+      examId,
+      dto.class_ids,
+      user.id,
+    );
   }
 
   @Get(':examId/preview')
@@ -188,7 +192,10 @@ export class ExamsController {
     @Param('examId') examId: string,
     @Body() dto: GenerateExamVariantsDto,
   ) {
-    return this.examsService.generateExamVariants(examId, Number(dto.versions ?? 4));
+    return this.examsService.generateExamVariants(
+      examId,
+      Number(dto.versions ?? 4),
+    );
   }
 
   @Post(':examId/sessions/start')

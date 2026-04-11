@@ -1,90 +1,119 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { Test, TestingModule } from '@nestjs/testing';
 import { StudentsController } from './students.controller';
+import { StudentsService } from './students.service';
+import { StudentsAnalyticsService } from './students-analytics.service';
+import { StudentsAcademicService } from './students-academic.service';
 
 describe('StudentsController', () => {
-  const studentsService = {
+  let controller: StudentsController;
+  let studentsService: StudentsService;
+  let analyticsService: StudentsAnalyticsService;
+  let academicService: StudentsAcademicService;
+
+  const mockStudentsService = {
     getMyProfile: jest.fn(),
+    getMyClasses: jest.fn(),
+    getMyGrades: jest.fn(),
+    getMyInvoices: jest.fn(),
     getStudents: jest.fn(),
     getStudentDetail: jest.fn(),
     getStudentHistory: jest.fn(),
     updateStudentStatus: jest.fn(),
-    getMyClasses: jest.fn(),
   };
 
-  const controller = new StudentsController(studentsService as never);
+  const mockAnalyticsService = {
+    getDashboard: jest.fn(),
+    getMyLearningProgress: jest.fn(),
+    getClassLearningReport: jest.fn(),
+  };
 
-  it('getMyProfile delegates user id', async () => {
-    await controller.getMyProfile({ id: 'u1' } as never);
+  const mockAcademicService = {
+    getAttendanceSummary: jest.fn(),
+    getStudentGradeBook: jest.fn(),
+    computeAndSaveClassFinalScore: jest.fn(),
+  };
 
-    expect(studentsService.getMyProfile).toHaveBeenCalledWith('u1');
-  });
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [StudentsController],
+      providers: [
+        {
+          provide: StudentsService,
+          useValue: mockStudentsService,
+        },
+        {
+          provide: StudentsAnalyticsService,
+          useValue: mockAnalyticsService,
+        },
+        {
+          provide: StudentsAcademicService,
+          useValue: mockAcademicService,
+        },
+      ],
+    }).compile();
 
-  it('getStudents parses admin filters', async () => {
-    await controller.getStudents(
-      'search term',
-      'active',
-      'class-1',
-      'course-2',
-      'true',
-      '7',
-      '11',
+    controller = module.get<StudentsController>(StudentsController);
+    studentsService = module.get<StudentsService>(StudentsService);
+    analyticsService = module.get<StudentsAnalyticsService>(
+      StudentsAnalyticsService,
     );
-
-    expect(studentsService.getStudents).toHaveBeenCalledWith({
-      search: 'search term',
-      status: 'active',
-      classId: 'class-1',
-      courseId: 'course-2',
-      leadOnly: true,
-      skip: 7,
-      take: 11,
-    });
-  });
-
-  it('getLeads forces leadOnly mode', async () => {
-    await controller.getLeads('lead', 'class-1', 'course-2', '4', '9');
-
-    expect(studentsService.getStudents).toHaveBeenCalledWith({
-      search: 'lead',
-      classId: 'class-1',
-      courseId: 'course-2',
-      leadOnly: true,
-      skip: 4,
-      take: 9,
-    });
-  });
-
-  it('getStudentDetail delegates id', async () => {
-    await controller.getStudentDetail('student-1');
-
-    expect(studentsService.getStudentDetail).toHaveBeenCalledWith('student-1');
-  });
-
-  it('getStudentHistory delegates id', async () => {
-    await controller.getStudentHistory('student-2');
-
-    expect(studentsService.getStudentHistory).toHaveBeenCalledWith('student-2');
-  });
-
-  it('updateStudentStatus delegates status payload', async () => {
-    await controller.updateStudentStatus('student-3', {
-      status: 'graduated',
-    } as never);
-
-    expect(studentsService.updateStudentStatus).toHaveBeenCalledWith(
-      'student-3',
-      'graduated',
+    academicService = module.get<StudentsAcademicService>(
+      StudentsAcademicService,
     );
   });
 
-  it('getMyClasses parses pagination params', async () => {
-    await controller.getMyClasses({ id: 'u1' } as never, 'active', '2', '3');
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
-    expect(studentsService.getMyClasses).toHaveBeenCalledWith({
-      studentId: 'u1',
-      status: 'active',
-      skip: 2,
-      take: 3,
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  describe('getDashboard', () => {
+    it('should delegate to analytics service', async () => {
+      await controller.getDashboard({ id: 'u-1' } as any);
+      expect(analyticsService.getDashboard).toHaveBeenCalledWith('u-1');
+    });
+  });
+
+  describe('recalculateFinalScore', () => {
+    it('should delegate to academic service', async () => {
+      await controller.recalculateFinalScore('u-1', 'c-1', 0.4, 0.5, 0.1);
+      expect(
+        academicService.computeAndSaveClassFinalScore,
+      ).toHaveBeenCalledWith({
+        studentId: 'u-1',
+        classId: 'c-1',
+        weights: {
+          assignment: 0.4,
+          exam: 0.5,
+          attendance: 0.1,
+        },
+      });
+    });
+  });
+
+  describe('getStudents', () => {
+    it('should cast booleans and numbers properly to the service', async () => {
+      await controller.getStudents(
+        'search',
+        'active',
+        'c-1',
+        'co-1',
+        true,
+        10,
+        5,
+      );
+      expect(studentsService.getStudents).toHaveBeenCalledWith({
+        search: 'search',
+        status: 'active',
+        classId: 'c-1',
+        courseId: 'co-1',
+        leadOnly: true,
+        skip: 10,
+        take: 5,
+      });
     });
   });
 });

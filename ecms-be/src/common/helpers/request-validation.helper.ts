@@ -9,11 +9,10 @@ export function ensureStudentSelfAccess(
   message: string,
 ): void {
   if (user.roles.includes('student') && user.id !== ownerId) {
-    throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'error.bad_request', message: message });
+    throw new AppException({
+      code: AppErrorCode.BAD_REQUEST,
+      errorKey: 'error.bad_request',
+      message: message,
+    });
   }
 }
-
-
-
-
-

@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiErrorResponse, ApiResponseEnvelope } from './api-response.types.js';
-import { mapStatusToErrorCode, mapStatusToErrorKey } from './error-code-mapper.js';
+import {
+  mapStatusToErrorCode,
+  mapStatusToErrorKey,
+} from './error-code-mapper.js';
 import { resolveLocaleFromHeader, resolveMessage } from './message-catalog.js';
 
 @Catch()

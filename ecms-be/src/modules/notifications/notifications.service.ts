@@ -1,9 +1,6 @@
 import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
 import { AppException } from '../../common/api/app-exception.js';
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { randomUUID } from 'node:crypto';
@@ -123,11 +120,19 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'notification.not_found', message: 'Thông báo không tồn tại' });
+      throw new AppException({
+        code: AppErrorCode.NOT_FOUND,
+        errorKey: 'notification.not_found',
+        message: 'Thông báo không tồn tại',
+      });
     }
 
     if (notification.user_id !== user_id) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'notification.bad_request', message: 'Không có quyền truy cập' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'notification.bad_request',
+        message: 'Không có quyền truy cập',
+      });
     }
 
     return notification;
@@ -228,8 +233,3 @@ export class NotificationsService {
     };
   }
 }
-
-
-
-
-

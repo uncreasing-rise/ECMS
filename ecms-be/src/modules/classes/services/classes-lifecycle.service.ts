@@ -1,10 +1,6 @@
 import { AppErrorCode } from '../../../common/api/app-error-code.enum.js';
 import { AppException } from '../../../common/api/app-exception.js';
-import {
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service.js';
@@ -37,7 +33,11 @@ export class ClassesLifecycleService {
     });
 
     if (!course) {
-      throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'course_id không tồn tại' });
+      throw new AppException({
+        code: AppErrorCode.BAD_REQUEST,
+        errorKey: 'class.bad_request',
+        message: 'course_id không tồn tại',
+      });
     }
 
     if (dto.teacher_id) {
@@ -46,7 +46,11 @@ export class ClassesLifecycleService {
         select: { id: true },
       });
       if (!teacher) {
-        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'class.bad_request', message: 'teacher_id không tồn tại' });
+        throw new AppException({
+          code: AppErrorCode.BAD_REQUEST,
+          errorKey: 'class.bad_request',
+          message: 'teacher_id không tồn tại',
+        });
       }
     }
 
@@ -177,12 +181,11 @@ export class ClassesLifecycleService {
   private async ensureRole(userId: string, roles: string[]) {
     const checks = await Promise.all(roles.map((r) => this.hasRole(userId, r)));
     if (!checks.some(Boolean)) {
-      throw new AppException({ code: AppErrorCode.FORBIDDEN, errorKey: 'class.forbidden', message: 'Bạn không có quyền truy cập' });
+      throw new AppException({
+        code: AppErrorCode.FORBIDDEN,
+        errorKey: 'class.forbidden',
+        message: 'Bạn không có quyền truy cập',
+      });
     }
   }
 }
-
-
-
-
-

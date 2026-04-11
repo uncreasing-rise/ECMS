@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Worker } from 'bullmq';
 import { NotificationDeliveryExecutor } from './notification-delivery.executor.js';
@@ -10,7 +15,9 @@ import {
 } from './notification-queue.utils.js';
 
 @Injectable()
-export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
+export class NotificationWorkerService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(NotificationWorkerService.name);
   private worker?: Worker<NotificationDeliveryJobData>;
 

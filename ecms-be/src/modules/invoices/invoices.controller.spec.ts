@@ -111,7 +111,6 @@ describe('InvoicesController', () => {
       expect(result).toEqual(mockReport);
       expect(mockInvoicesService.getRevenueReport).toHaveBeenCalled();
     });
-
   });
 
   describe('getTransactions', () => {

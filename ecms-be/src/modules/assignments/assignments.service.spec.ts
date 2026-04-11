@@ -64,11 +64,7 @@ describe('AssignmentsService', () => {
       due_at: '2026-06-01T00:00:00.000Z',
     };
 
-    const result = await service.createAssignment(
-      'class-1',
-      dto,
-      'teacher-1',
-    );
+    const result = await service.createAssignment('class-1', dto, 'teacher-1');
 
     expect(result.id).toBe('a-1');
     expect(mockNotificationsService.create).toHaveBeenCalledTimes(1);

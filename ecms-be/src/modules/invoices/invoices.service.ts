@@ -1,8 +1,6 @@
 import { AppErrorCode } from '../../common/api/app-error-code.enum.js';
 import { AppException } from '../../common/api/app-exception.js';
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../common/prisma/prisma.service.js';
@@ -576,12 +574,20 @@ export class InvoicesService {
       });
 
       if (!invoice) {
-        throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'invoice.not_found', message: 'Không tìm thấy hóa đơn' });
+        throw new AppException({
+          code: AppErrorCode.NOT_FOUND,
+          errorKey: 'invoice.not_found',
+          message: 'Không tìm thấy hóa đơn',
+        });
       }
 
       const totalPaid = Number(invoice.paid_amount) + dto.amount;
       if (totalPaid > Number(invoice.amount)) {
-        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'invoice.bad_request', message: `Số tiền thanh toán vượt quá công nợ (công nợ: ${Number(invoice.amount)}, đã thanh toán: ${Number(invoice.paid_amount)})`, });
+        throw new AppException({
+          code: AppErrorCode.BAD_REQUEST,
+          errorKey: 'invoice.bad_request',
+          message: `Số tiền thanh toán vượt quá công nợ (công nợ: ${Number(invoice.amount)}, đã thanh toán: ${Number(invoice.paid_amount)})`,
+        });
       }
 
       const status = totalPaid >= Number(invoice.amount) ? 'paid' : 'partial';
@@ -595,7 +601,11 @@ export class InvoicesService {
       });
 
       if (updateResult.count !== 1) {
-        throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'invoice.conflict', message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại', });
+        throw new AppException({
+          code: AppErrorCode.CONFLICT,
+          errorKey: 'invoice.conflict',
+          message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại',
+        });
       }
 
       const payment = await tx.payments.create({
@@ -648,11 +658,19 @@ export class InvoicesService {
       });
 
       if (!invoice) {
-        throw new AppException({ code: AppErrorCode.NOT_FOUND, errorKey: 'invoice.not_found', message: 'Không tìm thấy hóa đơn' });
+        throw new AppException({
+          code: AppErrorCode.NOT_FOUND,
+          errorKey: 'invoice.not_found',
+          message: 'Không tìm thấy hóa đơn',
+        });
       }
 
       if (dto.amount > Number(invoice.paid_amount)) {
-        throw new AppException({ code: AppErrorCode.BAD_REQUEST, errorKey: 'invoice.bad_request', message: `Số tiền hoàn phí vượt quá số tiền đã thanh toán (đã thanh toán: ${Number(invoice.paid_amount)})`, });
+        throw new AppException({
+          code: AppErrorCode.BAD_REQUEST,
+          errorKey: 'invoice.bad_request',
+          message: `Số tiền hoàn phí vượt quá số tiền đã thanh toán (đã thanh toán: ${Number(invoice.paid_amount)})`,
+        });
       }
 
       const newPaidAmount = Math.max(
@@ -675,7 +693,11 @@ export class InvoicesService {
       });
 
       if (updateResult.count !== 1) {
-        throw new AppException({ code: AppErrorCode.CONFLICT, errorKey: 'invoice.conflict', message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại', });
+        throw new AppException({
+          code: AppErrorCode.CONFLICT,
+          errorKey: 'invoice.conflict',
+          message: 'Hóa đơn đã thay đổi bởi giao dịch khác, vui lòng thử lại',
+        });
       }
 
       const refundPayment = await tx.payments.create({
@@ -733,8 +755,3 @@ export class InvoicesService {
     return date;
   }
 }
-
-
-
-
-
