@@ -36,9 +36,6 @@ describe('StudentsService', () => {
     invoices: {
       findMany: jest.fn(),
     },
-    user_roles: {
-      findMany: jest.fn(),
-    },
     exam_sessions: {
       findMany: jest.fn(),
     },

@@ -30,10 +30,15 @@ describe('AssignmentsService', () => {
     create: jest.fn(),
   };
 
+  const mockRedisService = {
+    invalidateTeacherDashboardCache: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     service = new AssignmentsService(
       mockPrismaService as unknown as PrismaService,
+      mockRedisService as any,
       mockNotificationsService as unknown as NotificationsService,
     );
   });

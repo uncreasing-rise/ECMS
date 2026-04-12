@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "vercel-build": "npx prisma generate --schema=../prisma/schema.prisma && nest build",
     "seed:question-bank": "ts-node src/scripts/seed-question-bank.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

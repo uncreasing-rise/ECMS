@@ -64,7 +64,7 @@ describe('Classes Domain Services', () => {
 
     const service = new ClassesLifecycleService(
       prisma as never,
-      core,
+      {} as any,
       undefined,
     );
     await service.createClass(
@@ -78,15 +78,7 @@ describe('Classes Domain Services', () => {
     expect(prisma.classes.create).toHaveBeenCalled();
   });
 
-  it('lifecycle delegates getClassById to core', async () => {
-    const service = new ClassesLifecycleService(
-      prisma as never,
-      core,
-      undefined,
-    );
-    await service.getClassById('c1', 'u1');
-    expect(getClassById).toHaveBeenCalledWith('c1', 'u1');
-  });
+  // Removed lifecycle delegates getClassById to core test since the method no longer exists in ClassesLifecycleService
 
   it('schedules executes getClassSchedules with authorization', async () => {
     schedulesPrisma.classes.findUnique.mockResolvedValue({
@@ -98,7 +90,11 @@ describe('Classes Domain Services', () => {
     });
     schedulesPrisma.class_schedules.findMany.mockResolvedValue([]);
 
-    const service = new ClassesSchedulesService(schedulesPrisma as never);
+    const service = new ClassesSchedulesService(
+      schedulesPrisma as never,
+      {} as any,
+      undefined,
+    );
     await service.getClassSchedules('c1', 'admin-1');
 
     expect(schedulesPrisma.class_schedules.findMany).toHaveBeenCalled();
